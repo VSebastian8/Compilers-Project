@@ -10,6 +10,7 @@ class TokenType(StrEnum):
     integ = "integer"
     op = "operator"
     punct = "punctuation"
+    end = "end"
 
 
 @dataclass
