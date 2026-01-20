@@ -1,6 +1,6 @@
 from compiler.parser import parse
 from compiler.token import Token, L
-from compiler.ast import Identifier, BinaryOp, Literal
+from compiler.ast import Identifier, BinaryOp, Literal, IfThenElse
 
 
 def test_parser_basics() -> None:
@@ -198,3 +198,68 @@ def test_parser_exceptions() -> None:
                 Token("5", "integer", (0, 10)),
             ]
         )
+
+
+def test_parser_if_then_else() -> None:
+    # if a then b + c else x * y
+    assert parse(
+        [
+            Token("if", "identifier", L),
+            Token("a", "identifier", L),
+            Token("then", "identifier", L),
+            Token("b", "identifier", L),
+            Token("+", "operator", L),
+            Token("c", "identifier", L),
+            Token("else", "identifier", L),
+            Token("x", "identifier", L),
+            Token("*", "operator", L),
+            Token("y", "identifier", L),
+        ]
+    ) == IfThenElse(
+        Identifier("a"),
+        BinaryOp(Identifier("b"), "+", Identifier("c")),
+        BinaryOp(Identifier("x"), "*", Identifier("y")),
+    )
+
+    # if x + 2 * 2 then True
+    assert parse(
+        [
+            Token("if", "identifier", L),
+            Token("x", "identifier", L),
+            Token("+", "operator", L),
+            Token("2", "integer", L),
+            Token("*", "operator", L),
+            Token("2", "integer", L),
+            Token("then", "identifier", L),
+            Token("True", "identifier", L),
+        ]
+    ) == IfThenElse(
+        BinaryOp(Identifier("x"), "+", BinaryOp(Literal(2), "*", Literal(2))),
+        Identifier("True"),
+        None,
+    )
+
+    # 5 * if x then if y then 2 else 3
+    assert parse(
+        [
+            Token("5", "integer", L),
+            Token("*", "operator", L),
+            Token("if", "identifier", L),
+            Token("x", "identifier", L),
+            Token("then", "identifier", L),
+            Token("if", "identifier", L),
+            Token("y", "identifier", L),
+            Token("then", "identifier", L),
+            Token("2", "integer", L),
+            Token("else", "identifier", L),
+            Token("3", "integer", L),
+        ]
+    ) == BinaryOp(
+        Literal(5),
+        "*",
+        IfThenElse(
+            Identifier("x"),
+            IfThenElse(Identifier("y"), Literal(2), Literal(3)),
+            None,
+        ),
+    )

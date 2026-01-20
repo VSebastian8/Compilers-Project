@@ -67,6 +67,8 @@ def parse(tokens: list[Token]) -> ast.Expression:
     def parse_factor() -> ast.Expression:
         if peek().text == "(":
             return parse_parenthesized()
+        elif peek().text == "if":
+            return parse_if_expression()
         elif peek().ttype == "integer":
             return parse_int_literal()
         elif peek().ttype == "identifier":
@@ -98,6 +100,19 @@ def parse(tokens: list[Token]) -> ast.Expression:
             left = ast.BinaryOp(left, operator, right)
 
         return left
+
+    def parse_if_expression() -> ast.IfThenElse:
+        consume("if")
+        condition = parse_expression()
+        then_tok = consume("then")
+        if then_tok.text != "then":
+            raise Exception(f"{then_tok.loc}: expected keyword then")
+        then = parse_expression()
+        otherwise = None
+        if peek().text == "else":
+            consume("else")
+            otherwise = parse_expression()
+        return ast.IfThenElse(condition, then, otherwise)
 
     result = parse_expression()
     if pos < len(tokens):

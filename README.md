@@ -1,6 +1,6 @@
 ## Steps
 
-- [ ] Tokenizer
+- [x] Tokenizer
 - [ ] Parser
 - [ ] Type Checker
 - [ ] IR Generator
