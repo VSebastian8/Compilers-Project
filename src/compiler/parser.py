@@ -16,7 +16,7 @@ def parse(tokens: list[Token]) -> ast.Expression:
             return Token(
                 loc=tokens[-1].loc,
                 ttype="end",
-                text="",
+                text="EOF",
             )
 
     # Increments pos by one
@@ -37,32 +37,6 @@ def parse(tokens: list[Token]) -> ast.Expression:
             raise Exception(f"{token.loc}: expected an integer literal")
         return ast.Literal(int(token.text))
 
-    def parse_identifier() -> ast.Identifier:
-        token = consume()
-        if token.ttype != "identifier":
-            raise Exception(f"{token.loc}: expected an identifier")
-        return ast.Identifier(token.text)
-
-    # Lower precedence + and -
-    def parse_expression() -> ast.Expression:
-        left = parse_term()
-        while peek().text in ["+", "-"]:
-            operator_token = consume()
-            operator = operator_token.text
-            right = parse_term()
-            left = ast.BinaryOp(left, operator, right)
-        return left
-
-    # Higher precedence * and /
-    def parse_term() -> ast.Expression:
-        left = parse_factor()
-        while peek().text in ["*", "/"]:
-            operator_token = consume()
-            operator = operator_token.text
-            right = parse_factor()
-            left = ast.BinaryOp(left, operator, right)
-        return left
-
     # Integer or identifier or ()
     def parse_factor() -> ast.Expression:
         if peek().text == "(":
@@ -71,12 +45,17 @@ def parse(tokens: list[Token]) -> ast.Expression:
             return parse_if_expression()
         elif peek().ttype == "integer":
             return parse_int_literal()
+        elif peek().text == "not" or peek().text == "-":
+            return parse_unary_op()
         elif peek().ttype == "identifier":
-            return parse_identifier()
+            token = consume()
+            if peek().text == "(":
+                return parse_function_call(token.text)
+            elif peek().text == "=":
+                return parse_assignment(token)
+            return ast.Identifier(token.text)
         else:
-            raise Exception(
-                f'{peek().loc}: expected "(", an integer literal or an identifier'
-            )
+            raise Exception(f"{peek().loc}: unexpected token {peek().text}")
 
     # ()
     def parse_parenthesized() -> ast.Expression:
@@ -85,21 +64,38 @@ def parse(tokens: list[Token]) -> ast.Expression:
         consume(")")
         return expr
 
-    def parse_right_expression() -> ast.Expression:
-        # Parse the first term.
-        left = parse_term()
+    left_associative_binary_operators = [
+        ["or"],
+        ["and"],
+        ["==", "!="],
+        ["<", "<=", ">", ">="],
+        ["+", "-"],
+        ["*", "/", "%"],
+    ]
 
-        # While there are more `+` or '-'...
-        if peek().text in ["+", "-"]:
-            # Move past the '+' or '-'.
+    # Allow chaining of operators of same or lower precedence
+    def parse_expression(precedence: int = 0) -> ast.Expression:
+        if precedence == len(left_associative_binary_operators):
+            return parse_factor()
+        left = parse_expression(precedence + 1)
+        while peek().text in left_associative_binary_operators[precedence]:
             operator_token = consume()
             operator = operator_token.text
-            # Parse the operator on the right.
-            right = parse_right_expression()
-            # Combine it with the stuff we've accumulated on the left so far.
+            right = parse_expression(precedence + 1)
             left = ast.BinaryOp(left, operator, right)
-
         return left
+
+    # not | -
+    def parse_unary_op() -> ast.UnaryOp:
+        operator = consume()
+        token = parse_factor()
+        return ast.UnaryOp(operator.text, token)
+
+    # Right associative =
+    def parse_assignment(left: Token) -> ast.Assignment:
+        consume("=")
+        right = parse_expression()
+        return ast.Assignment(ast.Identifier(left.text), right)
 
     def parse_if_expression() -> ast.IfThenElse:
         consume("if")
@@ -113,6 +109,18 @@ def parse(tokens: list[Token]) -> ast.Expression:
             consume("else")
             otherwise = parse_expression()
         return ast.IfThenElse(condition, then, otherwise)
+
+    def parse_function_call(name: str) -> ast.FunctionCall:
+        consume("(")
+        args = []
+        if peek().text != ")":
+            # Function has at least 1 argument
+            args.append(parse_expression())
+            while peek().text == ",":
+                consume(",")
+                args.append(parse_expression())
+        consume(")")
+        return ast.FunctionCall(name, args)
 
     result = parse_expression()
     if pos < len(tokens):

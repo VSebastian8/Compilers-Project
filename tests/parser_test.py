@@ -1,6 +1,15 @@
 from compiler.parser import parse
 from compiler.token import Token, L
-from compiler.ast import Identifier, BinaryOp, Literal, IfThenElse
+from compiler.ast import (
+    Literal,
+    Identifier,
+    UnaryOp,
+    BinaryOp,
+    IfThenElse,
+    FunctionCall,
+    Assignment,
+)
+from compiler.tokenizer import tokenize
 
 
 def test_parser_basics() -> None:
@@ -84,6 +93,32 @@ def test_parser_precedence() -> None:
         ),
         op="-",
         right=BinaryOp(Literal(2), "*", Identifier("hello")),
+    )
+
+    assert parse(tokenize("x + y == 2 or x < 1 + y / 2")) == BinaryOp(
+        BinaryOp(BinaryOp(Identifier("x"), "+", Identifier("y")), "==", Literal(2)),
+        "or",
+        BinaryOp(
+            Identifier("x"),
+            "<",
+            BinaryOp(
+                Literal(1),
+                "+",
+                BinaryOp(Identifier("y"), "/", Literal(2)),
+            ),
+        ),
+    )
+
+    assert parse(tokenize("not not x")) == UnaryOp(
+        "not", UnaryOp("not", Identifier("x"))
+    )
+
+    assert parse(tokenize("-1 + 2 != 3")) == BinaryOp(
+        BinaryOp(UnaryOp("-", Literal(1)), "+", Literal(2)), "!=", Literal(3)
+    )
+
+    assert parse(tokenize("x * -1")) == BinaryOp(
+        Identifier("x"), "*", UnaryOp("-", Literal(1))
     )
 
 
@@ -173,7 +208,7 @@ def test_parser_exceptions() -> None:
     # x +
     with pytest.raises(
         Exception,
-        match=re.escape('(0, 2): expected "(", an integer literal or an identifier'),
+        match=re.escape("(0, 2): unexpected token EOF"),
     ):
         parse(
             [
@@ -198,6 +233,14 @@ def test_parser_exceptions() -> None:
                 Token("5", "integer", (0, 10)),
             ]
         )
+
+    # Assignment to non-identifier
+    with pytest.raises(Exception, match=re.escape("(0, 3): unexpected token =")):
+        parse(tokenize("27 = x"))
+
+    # Assignment to non-identifier (b * 3 = c makes no sense)
+    with pytest.raises(Exception, match=re.escape("(0, 10): unexpected token =")):
+        parse(tokenize("a = b * 3 = c"))
 
 
 def test_parser_if_then_else() -> None:
@@ -262,4 +305,43 @@ def test_parser_if_then_else() -> None:
             IfThenElse(Identifier("y"), Literal(2), Literal(3)),
             None,
         ),
+    )
+
+
+def test_parser_functions() -> None:
+    assert parse(tokenize("f(x, y + z)")) == FunctionCall(
+        "f", [Identifier("x"), BinaryOp(Identifier("y"), "+", Identifier("z"))]
+    )
+
+    assert parse(tokenize("print_int(27)")) == FunctionCall("print_int", [Literal(27)])
+
+    assert parse(tokenize("main()")) == FunctionCall("main", [])
+
+
+def test_parser_assignment() -> None:
+    assert parse(tokenize("x = 24")) == Assignment(Identifier("x"), Literal(24))
+
+    assert parse(tokenize("a = b = c = (d + 2)")) == Assignment(
+        Identifier("a"),
+        Assignment(
+            Identifier("b"),
+            Assignment(Identifier("c"), BinaryOp(Identifier("d"), "+", Literal(2))),
+        ),
+    )
+
+    assert parse(tokenize("if True then x = y == 12 or 300 > z * 2")) == IfThenElse(
+        Identifier("True"),
+        Assignment(
+            Identifier("x"),
+            BinaryOp(
+                BinaryOp(Identifier("y"), "==", Literal(12)),
+                "or",
+                BinaryOp(Literal(300), ">", BinaryOp(Identifier("z"), "*", Literal(2))),
+            ),
+        ),
+        None,
+    )
+
+    assert parse(tokenize("2 * (hello = world)")) == BinaryOp(
+        Literal(2), "*", Assignment(Identifier("hello"), Identifier("world"))
     )
