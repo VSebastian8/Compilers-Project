@@ -8,6 +8,8 @@ from compiler.ast import (
     IfThenElse,
     FunctionCall,
     Assignment,
+    Block,
+    While,
 )
 from compiler.tokenizer import tokenize
 
@@ -242,6 +244,13 @@ def test_parser_exceptions() -> None:
     with pytest.raises(Exception, match=re.escape("(0, 10): unexpected token =")):
         parse(tokenize("a = b * 3 = c"))
 
+    # Block statements without ;
+    with pytest.raises(Exception, match=re.escape("(0, 4): missing ;")):
+        parse(tokenize("{ x y }"))
+
+    with pytest.raises(Exception, match=re.escape("(0, 23): missing ;")):
+        parse(tokenize("{ if true then { a } b c }"))
+
 
 def test_parser_if_then_else() -> None:
     # if a then b + c else x * y
@@ -319,20 +328,20 @@ def test_parser_functions() -> None:
 
 
 def test_parser_assignment() -> None:
-    assert parse(tokenize("x = 24")) == Assignment(Identifier("x"), Literal(24))
+    assert parse(tokenize("x = 24")) == Assignment("x", Literal(24))
 
     assert parse(tokenize("a = b = c = (d + 2)")) == Assignment(
-        Identifier("a"),
+        "a",
         Assignment(
-            Identifier("b"),
-            Assignment(Identifier("c"), BinaryOp(Identifier("d"), "+", Literal(2))),
+            "b",
+            Assignment("c", BinaryOp(Identifier("d"), "+", Literal(2))),
         ),
     )
 
     assert parse(tokenize("if True then x = y == 12 or 300 > z * 2")) == IfThenElse(
         Identifier("True"),
         Assignment(
-            Identifier("x"),
+            "x",
             BinaryOp(
                 BinaryOp(Identifier("y"), "==", Literal(12)),
                 "or",
@@ -343,5 +352,96 @@ def test_parser_assignment() -> None:
     )
 
     assert parse(tokenize("2 * (hello = world)")) == BinaryOp(
-        Literal(2), "*", Assignment(Identifier("hello"), Identifier("world"))
+        Literal(2), "*", Assignment("hello", Identifier("world"))
+    )
+
+
+def test_parser_block() -> None:
+    assert parse(tokenize("{ x = y * 2 }")) == Block(
+        [Assignment("x", BinaryOp(Identifier("y"), "*", Literal(2)))]
+    )
+
+    assert parse(tokenize("{ x = 2; 3 + 3 / 3; f(x); }")) == Block(
+        [
+            Assignment("x", Literal(2)),
+            BinaryOp(Literal(3), "+", BinaryOp(Literal(3), "/", Literal(3))),
+            FunctionCall("f", [Identifier("x")]),
+            Literal(None),
+        ]
+    )
+
+    assert parse(tokenize("while True do { print_int(14); }")) == While(
+        Identifier("True"),
+        Block([FunctionCall("print_int", [Literal(14)]), Literal(None)]),
+    )
+
+    assert (
+        parse(
+            tokenize(
+                """
+        {
+            while f() do {
+                x = 10;
+                y = if g(x) then {
+                    x = x + 1;
+                    x
+                } else {
+                    g(x)
+                };  # <-- (this semicolon will become optional later)
+                g(y);
+            };  # <------ (this too)
+            123
+        }"""
+            )
+        )
+        == Block(
+            [
+                While(
+                    FunctionCall("f", []),
+                    Block(
+                        [
+                            Assignment("x", Literal(10)),
+                            Assignment(
+                                "y",
+                                IfThenElse(
+                                    FunctionCall("g", [Identifier("x")]),
+                                    Block(
+                                        [
+                                            Assignment(
+                                                "x",
+                                                BinaryOp(
+                                                    Identifier("x"), "+", Literal(1)
+                                                ),
+                                            ),
+                                            Identifier("x"),
+                                        ]
+                                    ),
+                                    Block([FunctionCall("g", [Identifier("x")])]),
+                                ),
+                            ),
+                            FunctionCall("g", [Identifier("y")]),
+                            Literal(None),
+                        ]
+                    ),
+                ),
+                Literal(123),
+            ]
+        )
+    )
+
+    assert parse(tokenize("x = { { f(a) } { b } }")) == Assignment(
+        "x",
+        Block(
+            [Block([FunctionCall("f", [Identifier("a")])]), Block([Identifier("b")])]
+        ),
+    )
+
+    assert (
+        parse(tokenize("{ { x } { y } }"))
+        == parse(tokenize("{ { x }; { y } }"))
+        != parse(tokenize("{ { x }; { y }; }"))
+    )
+
+    assert parse(tokenize("{ if true then { a } else { b } c }")) == parse(
+        tokenize("{ if true then { a } else { b }; c }")
     )

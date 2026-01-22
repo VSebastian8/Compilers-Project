@@ -41,8 +41,12 @@ def parse(tokens: list[Token]) -> ast.Expression:
     def parse_factor() -> ast.Expression:
         if peek().text == "(":
             return parse_parenthesized()
+        elif peek().text == "{":
+            return parse_block()
         elif peek().text == "if":
             return parse_if_expression()
+        elif peek().text == "while":
+            return parse_while_expression()
         elif peek().ttype == "integer":
             return parse_int_literal()
         elif peek().text == "not" or peek().text == "-":
@@ -95,7 +99,7 @@ def parse(tokens: list[Token]) -> ast.Expression:
     def parse_assignment(left: Token) -> ast.Assignment:
         consume("=")
         right = parse_expression()
-        return ast.Assignment(ast.Identifier(left.text), right)
+        return ast.Assignment(left.text, right)
 
     def parse_if_expression() -> ast.IfThenElse:
         consume("if")
@@ -122,6 +126,47 @@ def parse(tokens: list[Token]) -> ast.Expression:
         consume(")")
         return ast.FunctionCall(name, args)
 
+    # ; is optional after
+    def ends_in_block(exp: ast.Expression) -> bool:
+        if isinstance(exp, ast.Block) or isinstance(exp, ast.While):
+            return True
+        if isinstance(exp, ast.IfThenElse):
+            match (exp.otherwise):
+                case None:
+                    return ends_in_block(exp.then)
+                case e:
+                    return ends_in_block(e)
+        return False
+
+    def parse_block() -> ast.Block:
+        consume("{")
+        exps = []
+        void = True
+        while not peek().text == "}":
+            void = False
+            exp = parse_expression()
+            exps.append(exp)
+            if peek().text == ";":
+                consume(";")
+                void = True
+            else:
+                if ends_in_block(exp):
+                    continue
+                if peek().text != "}":
+                    raise Exception(f"{peek().loc}: missing ;")
+        if void:
+            exps.append(ast.Literal(None))
+        consume("}")
+        return ast.Block(exps)
+
+    def parse_while_expression() -> ast.While:
+        consume("while")
+        condition = parse_expression()
+        consume("do")
+        block = parse_block()
+        return ast.While(condition, block)
+
+    # Finall Parser Function Call
     result = parse_expression()
     if pos < len(tokens):
         raise Exception(f"{peek().loc}: unexpected token {peek().text}")

@@ -8,7 +8,7 @@ class Expression:
 
 @dataclass
 class Literal(Expression):
-    value: int | bool
+    value: int | bool | None
 
 
 @dataclass
@@ -46,5 +46,16 @@ class FunctionCall(Expression):
 
 @dataclass
 class Assignment(Expression):
-    left: Identifier
+    left: str  # identifier
     right: Expression
+
+
+@dataclass
+class Block(Expression):
+    expressions: list[Expression]
+
+
+@dataclass
+class While(Expression):
+    condition: Expression
+    block: Block
