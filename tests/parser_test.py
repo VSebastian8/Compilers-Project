@@ -1,5 +1,5 @@
 from compiler.parser import parse
-from compiler.token import Token, L
+from compiler.token import Token
 from compiler.ast import (
     Literal,
     Identifier,
@@ -8,6 +8,7 @@ from compiler.ast import (
     IfThenElse,
     FunctionCall,
     Assignment,
+    VarDec,
     Block,
     While,
 )
@@ -18,18 +19,18 @@ def test_parser_basics() -> None:
     # 23 + 5
     assert parse(
         [
-            Token("23", "integer", L),
-            Token("+", "operator", L),
-            Token("5", "integer", L),
+            Token("23", "integer"),
+            Token("+", "operator"),
+            Token("5", "integer"),
         ]
     ) == BinaryOp(Literal(23), "+", Literal(5))
 
     # x / 2
     assert parse(
         [
-            Token("x", "identifier", L),
-            Token("/", "operator", L),
-            Token("2", "integer", L),
+            Token("x", "identifier"),
+            Token("/", "operator"),
+            Token("2", "integer"),
         ]
     ) == BinaryOp(Identifier("x"), "/", Literal(2))
 
@@ -38,22 +39,22 @@ def test_parser_associativity() -> None:
     # 1 + 2 - 3
     assert parse(
         [
-            Token("1", "integer", L),
-            Token("+", "operator", L),
-            Token("2", "integer", L),
-            Token("-", "operator", L),
-            Token("3", "integer", L),
+            Token("1", "integer"),
+            Token("+", "operator"),
+            Token("2", "integer"),
+            Token("-", "operator"),
+            Token("3", "integer"),
         ]
     ) == BinaryOp(BinaryOp(Literal(1), "+", Literal(2)), "-", Literal(3))
 
     # x / y * z
     assert parse(
         [
-            Token("x", "identifier", L),
-            Token("/", "operator", L),
-            Token("y", "identifier", L),
-            Token("*", "operator", L),
-            Token("z", "identifier", L),
+            Token("x", "identifier"),
+            Token("/", "operator"),
+            Token("y", "identifier"),
+            Token("*", "operator"),
+            Token("z", "identifier"),
         ]
     ) == BinaryOp(BinaryOp(Identifier("x"), "/", Identifier("y")), "*", Identifier("z"))
 
@@ -62,28 +63,28 @@ def test_parser_precedence() -> None:
     # 1 + 1 / x
     assert parse(
         [
-            Token("1", "integer", L),
-            Token("+", "operator", L),
-            Token("1", "integer", L),
-            Token("/", "operator", L),
-            Token("x", "identifier", L),
+            Token("1", "integer"),
+            Token("+", "operator"),
+            Token("1", "integer"),
+            Token("/", "operator"),
+            Token("x", "identifier"),
         ]
     ) == BinaryOp(Literal(1), "+", BinaryOp(Literal(1), "/", Identifier("x")))
 
     # 2 + x * x / 2 - 2 * hello
     assert parse(
         [
-            Token("2", "integer", L),
-            Token("+", "operator", L),
-            Token("x", "identifier", L),
-            Token("*", "operator", L),
-            Token("x", "identifier", L),
-            Token("/", "operator", L),
-            Token("2", "integer", L),
-            Token("-", "operator", L),
-            Token("2", "integer", L),
-            Token("*", "operator", L),
-            Token("hello", "identifier", L),
+            Token("2", "integer"),
+            Token("+", "operator"),
+            Token("x", "identifier"),
+            Token("*", "operator"),
+            Token("x", "identifier"),
+            Token("/", "operator"),
+            Token("2", "integer"),
+            Token("-", "operator"),
+            Token("2", "integer"),
+            Token("*", "operator"),
+            Token("hello", "identifier"),
         ]
     ) == BinaryOp(
         left=BinaryOp(
@@ -128,55 +129,55 @@ def test_parser_parentheses() -> None:
     # 2026 * (x + y)
     assert parse(
         [
-            Token("2026", "integer", L),
-            Token("*", "operator", L),
-            Token("(", "punctuation", L),
-            Token("x", "identifier", L),
-            Token("+", "operator", L),
-            Token("y", "identifier", L),
-            Token(")", "punctuation", L),
+            Token("2026", "integer"),
+            Token("*", "operator"),
+            Token("(", "punctuation"),
+            Token("x", "identifier"),
+            Token("+", "operator"),
+            Token("y", "identifier"),
+            Token(")", "punctuation"),
         ]
     ) == BinaryOp(Literal(2026), "*", BinaryOp(Identifier("x"), "+", Identifier("y")))
 
     # 2026 * (((((x - y)))))
     assert parse(
         [
-            Token("2026", "integer", L),
-            Token("*", "operator", L),
-            Token("(", "punctuation", L),
-            Token("(", "punctuation", L),
-            Token("(", "punctuation", L),
-            Token("(", "punctuation", L),
-            Token("(", "punctuation", L),
-            Token("x", "identifier", L),
-            Token("-", "operator", L),
-            Token("y", "identifier", L),
-            Token(")", "punctuation", L),
-            Token(")", "punctuation", L),
-            Token(")", "punctuation", L),
-            Token(")", "punctuation", L),
-            Token(")", "punctuation", L),
+            Token("2026", "integer"),
+            Token("*", "operator"),
+            Token("(", "punctuation"),
+            Token("(", "punctuation"),
+            Token("(", "punctuation"),
+            Token("(", "punctuation"),
+            Token("(", "punctuation"),
+            Token("x", "identifier"),
+            Token("-", "operator"),
+            Token("y", "identifier"),
+            Token(")", "punctuation"),
+            Token(")", "punctuation"),
+            Token(")", "punctuation"),
+            Token(")", "punctuation"),
+            Token(")", "punctuation"),
         ]
     ) == BinaryOp(Literal(2026), "*", BinaryOp(Identifier("x"), "-", Identifier("y")))
 
     # (x) * (3 - 1 / (y * 15))
     assert parse(
         [
-            Token("(", "punctuation", L),
-            Token("x", "identifier", L),
-            Token(")", "punctuation", L),
-            Token("*", "operator", L),
-            Token("(", "punctuation", L),
-            Token("3", "integer", L),
-            Token("-", "operator", L),
-            Token("1", "integer", L),
-            Token("/", "operator", L),
-            Token("(", "punctuation", L),
-            Token("y", "identifier", L),
-            Token("*", "operator", L),
-            Token("15", "integer", L),
-            Token(")", "punctuation", L),
-            Token(")", "punctuation", L),
+            Token("(", "punctuation"),
+            Token("x", "identifier"),
+            Token(")", "punctuation"),
+            Token("*", "operator"),
+            Token("(", "punctuation"),
+            Token("3", "integer"),
+            Token("-", "operator"),
+            Token("1", "integer"),
+            Token("/", "operator"),
+            Token("(", "punctuation"),
+            Token("y", "identifier"),
+            Token("*", "operator"),
+            Token("15", "integer"),
+            Token(")", "punctuation"),
+            Token(")", "punctuation"),
         ]
     ) == BinaryOp(
         Identifier("x"),
@@ -198,10 +199,10 @@ def test_parser_exceptions() -> None:
 
     # Leftover text:
     # 3 4
-    with pytest.raises(Exception, match=re.escape("(0, 2): unexpected token 4")):
+    with pytest.raises(Exception, match=re.escape("(0, 2): missing ;")):
         parse(
             [
-                Token("3", "integer", L),
+                Token("3", "integer"),
                 Token("4", "integer", (0, 2)),
             ]
         )
@@ -214,7 +215,7 @@ def test_parser_exceptions() -> None:
     ):
         parse(
             [
-                Token("x", "identifier", L),
+                Token("x", "identifier"),
                 Token("+", "operator", (0, 2)),
             ]
         )
@@ -237,11 +238,11 @@ def test_parser_exceptions() -> None:
         )
 
     # Assignment to non-identifier
-    with pytest.raises(Exception, match=re.escape("(0, 3): unexpected token =")):
+    with pytest.raises(Exception, match=re.escape("(0, 3): missing ;")):
         parse(tokenize("27 = x"))
 
     # Assignment to non-identifier (b * 3 = c makes no sense)
-    with pytest.raises(Exception, match=re.escape("(0, 10): unexpected token =")):
+    with pytest.raises(Exception, match=re.escape("(0, 10): missing ;")):
         parse(tokenize("a = b * 3 = c"))
 
     # Block statements without ;
@@ -251,21 +252,32 @@ def test_parser_exceptions() -> None:
     with pytest.raises(Exception, match=re.escape("(0, 23): missing ;")):
         parse(tokenize("{ if true then { a } b c }"))
 
+    # if no then
+    with pytest.raises(Exception, match=re.escape('(0, 5): expected "then"')):
+        parse(tokenize("{ if true"))
+
+    # var in wrong place
+    with pytest.raises(
+        Exception,
+        match=re.escape("(0, 21): variable declaration only allowed inside blocks"),
+    ):
+        parse(tokenize("if whatever then var x = 3"))
+
 
 def test_parser_if_then_else() -> None:
     # if a then b + c else x * y
     assert parse(
         [
-            Token("if", "identifier", L),
-            Token("a", "identifier", L),
-            Token("then", "identifier", L),
-            Token("b", "identifier", L),
-            Token("+", "operator", L),
-            Token("c", "identifier", L),
-            Token("else", "identifier", L),
-            Token("x", "identifier", L),
-            Token("*", "operator", L),
-            Token("y", "identifier", L),
+            Token("if", "identifier"),
+            Token("a", "identifier"),
+            Token("then", "identifier"),
+            Token("b", "identifier"),
+            Token("+", "operator"),
+            Token("c", "identifier"),
+            Token("else", "identifier"),
+            Token("x", "identifier"),
+            Token("*", "operator"),
+            Token("y", "identifier"),
         ]
     ) == IfThenElse(
         Identifier("a"),
@@ -276,14 +288,14 @@ def test_parser_if_then_else() -> None:
     # if x + 2 * 2 then True
     assert parse(
         [
-            Token("if", "identifier", L),
-            Token("x", "identifier", L),
-            Token("+", "operator", L),
-            Token("2", "integer", L),
-            Token("*", "operator", L),
-            Token("2", "integer", L),
-            Token("then", "identifier", L),
-            Token("True", "identifier", L),
+            Token("if", "identifier"),
+            Token("x", "identifier"),
+            Token("+", "operator"),
+            Token("2", "integer"),
+            Token("*", "operator"),
+            Token("2", "integer"),
+            Token("then", "identifier"),
+            Token("True", "identifier"),
         ]
     ) == IfThenElse(
         BinaryOp(Identifier("x"), "+", BinaryOp(Literal(2), "*", Literal(2))),
@@ -294,17 +306,17 @@ def test_parser_if_then_else() -> None:
     # 5 * if x then if y then 2 else 3
     assert parse(
         [
-            Token("5", "integer", L),
-            Token("*", "operator", L),
-            Token("if", "identifier", L),
-            Token("x", "identifier", L),
-            Token("then", "identifier", L),
-            Token("if", "identifier", L),
-            Token("y", "identifier", L),
-            Token("then", "identifier", L),
-            Token("2", "integer", L),
-            Token("else", "identifier", L),
-            Token("3", "integer", L),
+            Token("5", "integer"),
+            Token("*", "operator"),
+            Token("if", "identifier"),
+            Token("x", "identifier"),
+            Token("then", "identifier"),
+            Token("if", "identifier"),
+            Token("y", "identifier"),
+            Token("then", "identifier"),
+            Token("2", "integer"),
+            Token("else", "identifier"),
+            Token("3", "integer"),
         ]
     ) == BinaryOp(
         Literal(5),
@@ -355,6 +367,11 @@ def test_parser_assignment() -> None:
         Literal(2), "*", Assignment("hello", Identifier("world"))
     )
 
+    assert parse(tokenize("var a = b = c")) == VarDec(
+        "a",
+        Assignment("b", Identifier("c")),
+    )
+
 
 def test_parser_block() -> None:
     assert parse(tokenize("{ x = y * 2 }")) == Block(
@@ -381,7 +398,7 @@ def test_parser_block() -> None:
                 """
         {
             while f() do {
-                x = 10;
+                var x = 10;
                 y = if g(x) then {
                     x = x + 1;
                     x
@@ -400,7 +417,7 @@ def test_parser_block() -> None:
                     FunctionCall("f", []),
                     Block(
                         [
-                            Assignment("x", Literal(10)),
+                            VarDec("x", Literal(10)),
                             Assignment(
                                 "y",
                                 IfThenElse(
@@ -438,10 +455,18 @@ def test_parser_block() -> None:
 
     assert (
         parse(tokenize("{ { x } { y } }"))
-        == parse(tokenize("{ { x }; { y } }"))
-        != parse(tokenize("{ { x }; { y }; }"))
+        == parse(tokenize("{ { x };{ y } }"))
+        != parse(tokenize("{ { x };{ y };}"))
     )
 
     assert parse(tokenize("{ if true then { a } else { b } c }")) == parse(
-        tokenize("{ if true then { a } else { b }; c }")
+        tokenize("{ if true then { a } else { b };c }")
+    )
+
+    assert parse(tokenize("x = 42; 14; print(x)")) == Block(
+        [
+            Assignment("x", Literal(42)),
+            Literal(14),
+            FunctionCall("print", [Identifier("x")]),
+        ]
     )

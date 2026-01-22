@@ -1,9 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from compiler.token import Location, L
 
 
 @dataclass
 class Expression:
     """Base class for AST nodes representing expressions."""
+
+    loc: Location = field(default_factory=lambda: L, kw_only=True)
 
 
 @dataclass
@@ -46,6 +49,12 @@ class FunctionCall(Expression):
 
 @dataclass
 class Assignment(Expression):
+    left: str  # identifier
+    right: Expression
+
+
+@dataclass
+class VarDec(Expression):
     left: str  # identifier
     right: Expression
 

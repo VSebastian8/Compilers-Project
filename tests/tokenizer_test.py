@@ -1,4 +1,4 @@
-from compiler.token import Token, L
+from compiler.token import Token
 from compiler.tokenizer import tokenize
 
 
@@ -13,10 +13,10 @@ def test_tokenizer_basics() -> None:
     ]
     # L object test
     assert tokenize("  if  x12 321\tbreak") == [
-        Token("if", "identifier", L),
-        Token("x12", "identifier", L),
-        Token("321", "integer", L),
-        Token("break", "identifier", L),
+        Token("if", "identifier"),
+        Token("x12", "identifier"),
+        Token("321", "integer"),
+        Token("break", "identifier"),
     ]
 
 
@@ -52,8 +52,8 @@ def test_tokenizer_op_punct() -> None:
 def test_tokenizer_comments() -> None:
     # Single line
     assert tokenize("// bla bla \n while (True) {\n\tx = y * 2;\n } # bla123 \n") == [
-        Token("while", "identifier", L),
-        Token("(", "punctuation", L),
+        Token("while", "identifier"),
+        Token("(", "punctuation"),
         Token("True", "identifier", (1, 8)),
         Token(")", "punctuation"),
         Token("{", "punctuation"),
