@@ -24,8 +24,6 @@ def print_bool(x: bool) -> None:
 
 top_level: SymTab = SymTab(
     {
-        "true": True,
-        "false": False,
         "unit": None,
         "+": (lambda x, y: x + y),
         "-": (lambda x, y: x - y),

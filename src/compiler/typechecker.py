@@ -31,6 +31,8 @@ def typecheck(
         case ast.Literal():
             if node.value == None:
                 return types.Unit
+            if isinstance(node.value, bool):
+                return types.Bool
             return types.Int
 
         case ast.Identifier():
@@ -67,14 +69,17 @@ def typecheck(
             t1 = typecheck(node.left, type_table)
             t2 = typecheck(node.right, type_table)
             if node.op == "==" or node.op == "!=":
-                if t1 is not t2:
+                if t1 != t2:
                     raise Exception(
                         f"{node.op} Type error: cannot compare types {t1} and {t2}"
                     )
+                return types.Bool
             op = get_var_type(node.op, type_table)
             if isinstance(op, types.FunType):
-                if op.args[0] is not t1 or op.args[1] is not t2:
-                    f"{node.loc}: Type error: operator {node.op} expected types ({op.args[0]}, {op.args[1]}) but found ({t1}, {t2}"
+                if op.args[0] != t1 or op.args[1] != t2:
+                    raise Exception(
+                        f"{node.loc}: Type error: operator {node.op} expected types ({op.args[0]}, {op.args[1]}) but found ({t1}, {t2})"
+                    )
                 return op.ret
             raise Exception(f"{node.loc}: {node.op} is not an operator")
 
@@ -110,9 +115,9 @@ def typecheck(
                 call_types = []
                 for arg in node.args:
                     call_types.append(typecheck(arg, type_table))
-                if func.args is not call_types:
+                if func.args != call_types:
                     raise Exception(
-                        f"{node.loc} Type error: Function call to {node.name} has wrong parameter types. Expected {func.args}, got {call_types}"
+                        f"{node.loc} Type error: Function {node.name} has type {func.name} but it's been called with the following types {call_types}"
                     )
                 return func.ret
             raise Exception(f"{node.loc}: {node.name} is not a function")

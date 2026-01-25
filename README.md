@@ -1,7 +1,8 @@
 ## Steps
 
 - [x] Tokenizer
-- [ ] Parser
+- [x] Parser
+- [x] Interpreter
 - [ ] Type Checker
 - [ ] IR Generator
 - [ ] Assembly Generator
