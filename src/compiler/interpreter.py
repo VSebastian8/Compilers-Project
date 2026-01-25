@@ -17,6 +17,11 @@ def print_int(x: int) -> None:
     return None
 
 
+def print_bool(x: bool) -> None:
+    print(x)
+    return None
+
+
 top_level: SymTab = SymTab(
     {
         "true": True,
@@ -38,6 +43,7 @@ top_level: SymTab = SymTab(
         "unary_-": (lambda x: -x),
         "unary_not": (lambda x: not x),
         "print_int": print_int,
+        "print_bool": print_bool,
     },
     None,
 )
@@ -84,6 +90,7 @@ def interpret(node: ast.Expression, symbol_table: SymTab = top_level) -> Value:
 
         case ast.Assignment():
             name = node.left
+            find_variable(name, symbol_table)
             val = interpret(node.right, symbol_table)
             set_variable(name, val, symbol_table)
             return val
