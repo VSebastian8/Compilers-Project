@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from compiler.token import Location, L
+from compiler.types import Type, Unit
 
 
 @dataclass
@@ -7,6 +8,7 @@ class Expression:
     """Base class for AST nodes representing expressions."""
 
     loc: Location = field(default_factory=lambda: L, kw_only=True)
+    typ: Type = field(default_factory=lambda: Unit, kw_only=True)
 
 
 @dataclass

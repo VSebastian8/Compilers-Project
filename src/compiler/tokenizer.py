@@ -6,17 +6,17 @@ def tokenize(source_code: str) -> list[Token]:
     """Transforms source code string into a list of tokens"""
     whitespace = re.compile(r"[\t\n ]+")
     line_comment = re.compile("(#|//)(.*)\n")
-    multi_line_comment = re.compile("(/\\*)(.|\n)*(\\*/)")
+    multi_line_comment = re.compile(r"/\*[\s\S]*?\*/")
     r_int = re.compile(r"[0-9]+")
     r_ident = re.compile(r"[a-zA-Z_][a-zA-Z_0-9]*")
     r_op = re.compile(r"<=|>=|==|!=|<|>|=|\+|-|\*|/|%")
-    r_punct = re.compile(r"\(|\)|\{|\}|\,|;")
+    r_punct = re.compile(r"\(|\)|\{|\}|\,|:|;|=>")
 
     regexes = [
         (r_int, TokenType.integ),
         (r_ident, TokenType.ident),
-        (r_op, TokenType.op),
         (r_punct, TokenType.punct),
+        (r_op, TokenType.op),
     ]
     tokens = []
     i = 0

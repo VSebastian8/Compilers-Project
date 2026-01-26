@@ -1,6 +1,7 @@
 from compiler.tokenizer import Token
 from compiler.token import Location
 import compiler.ast as ast
+import compiler.types as types
 
 
 def parse(tokens: list[Token]) -> ast.Expression:
@@ -149,10 +150,51 @@ def parse(tokens: list[Token]) -> ast.Expression:
                     return ends_in_block(e)
         return False
 
+    def parse_type() -> types.Type:
+        if peek().text == "Int":
+            consume("Int")
+            return types.Int
+        elif peek().text == "Bool":
+            consume("Bool")
+            return types.Bool
+        if peek().text == "Unit":
+            consume("Unit")
+            return types.Unit
+        elif peek().text == "(":
+            consume("(")
+            input_types = []
+            while not peek().text == ")":
+                input_types.append(parse_type())
+                if peek().text == ",":
+                    consume(",")
+                    if peek().text == ")":
+                        raise Exception(f'{peek().loc}: extra "," found')
+                else:
+                    if peek().text != ")":
+                        raise Exception(
+                            f'{peek().loc}: unexpected symbol "{peek().text}"'
+                        )
+            consume(")")
+            consume("=>")
+            output_type = parse_type()
+            return types.FunType(input_types, output_type)
+        raise Exception(f'{peek().loc}: expected type, found "{peek().text}"')
+
     def parse_var() -> ast.VarDec:
         var_tok = consume("var")
-        assignment = parse_assignment(consume())
-        return ast.VarDec(assignment.left, assignment.right, loc=var_tok.loc)
+        left = consume()
+        if left.ttype != "identifier":
+            raise Exception(
+                f'{peek().loc}: expected identifier after var, found "{left.text}"'
+            )
+        # Optional type declaration
+        typ = types.Unit
+        if peek().text == ":":
+            consume(":")
+            typ = parse_type()
+        consume("=")
+        right = parse_expression()
+        return ast.VarDec(left.text, right, loc=var_tok.loc, typ=typ)
 
     def parse_block(top_level: bool = False) -> ast.Block:
         loc = Location(0, 0)
@@ -169,6 +211,8 @@ def parse(tokens: list[Token]) -> ast.Expression:
             if peek().text == ";":
                 consume(";")
                 void = True
+                if pos == len(tokens):
+                    break
             else:
                 if ends_in_block(exp):
                     continue

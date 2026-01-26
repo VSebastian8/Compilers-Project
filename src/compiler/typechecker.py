@@ -27,6 +27,14 @@ def set_var_type(var: str, typ: types.Type, type_table: types.TypeTab) -> None:
 def typecheck(
     node: ast.Expression, type_table: types.TypeTab = types.top_level
 ) -> types.Type:
+    typ = get_type(node, type_table)
+    node.typ = typ
+    return typ
+
+
+def get_type(
+    node: ast.Expression, type_table: types.TypeTab = types.top_level
+) -> types.Type:
     match node:
         case ast.Literal():
             if node.value == None:
@@ -41,8 +49,14 @@ def typecheck(
         case ast.VarDec():
             name: str = node.left
             if name in type_table.locals:
-                raise Exception(f"Cannot declare variable {name} multiple times")
+                raise Exception(
+                    f"{node.loc}: cannot declare variable {name} multiple times"
+                )
             typ: types.Type = typecheck(node.right, type_table)
+            if node.typ != types.Unit and node.typ != typ:
+                raise Exception(
+                    f"{node.loc}: [Type error] assigned type {typ} conflicts with declared type {node.typ}"
+                )
             type_table.locals[name] = typ
             return typ
 
@@ -52,7 +66,7 @@ def typecheck(
             right_typ = typecheck(node.right, type_table)
             if left_typ is not right_typ:
                 raise Exception(
-                    f"{node.loc}: Type error: cannot assign value of type {right_typ} to variable {name} of type {right_typ}"
+                    f"{node.loc}: [Type error] cannot assign value of type {right_typ} to variable {name} of type {left_typ}"
                 )
             return right_typ
 
@@ -61,7 +75,7 @@ def typecheck(
             op = get_var_type(f"unary_{node.op}", type_table)
             if isinstance(op, types.FunType):
                 if op.args[0] is not typ:
-                    f"{node.loc}: Type error: cannot apply operator {node.op} to value of type {typ}"
+                    f"{node.loc}: [Type error] cannot apply operator {node.op} to value of type {typ}"
                 return op.ret
             raise Exception(f"{node.loc}: {node.op} is not an operator")
 
@@ -71,14 +85,14 @@ def typecheck(
             if node.op == "==" or node.op == "!=":
                 if t1 != t2:
                     raise Exception(
-                        f"{node.op} Type error: cannot compare types {t1} and {t2}"
+                        f"{node.op}: [Type error] cannot compare types {t1} and {t2}"
                     )
                 return types.Bool
             op = get_var_type(node.op, type_table)
             if isinstance(op, types.FunType):
                 if op.args[0] != t1 or op.args[1] != t2:
                     raise Exception(
-                        f"{node.loc}: Type error: operator {node.op} expected types ({op.args[0]}, {op.args[1]}) but found ({t1}, {t2})"
+                        f"{node.loc}: [Type error] operator {node.op} expected types ({op.args[0]}, {op.args[1]}) but found ({t1}, {t2})"
                     )
                 return op.ret
             raise Exception(f"{node.loc}: {node.op} is not an operator")
@@ -87,7 +101,7 @@ def typecheck(
             t1 = typecheck(node.condition, type_table)
             if t1 is not types.Bool:
                 raise Exception(
-                    f"{node.loc}: Type error: if condition must be of type Bool not {t1}"
+                    f"{node.loc}: [Type error] if condition must be of type Bool not {t1}"
                 )
             t2 = typecheck(node.then, type_table)
             t3 = (
@@ -97,11 +111,16 @@ def typecheck(
             )
             if t2 is not t3:
                 raise Exception(
-                    f"{node.loc}: Type error: if branches must have the same type, not {t2} and {t3}"
+                    f"{node.loc}: [Type error] if branches must have the same type, not {t2} and {t3}"
                 )
             return t2
 
         case ast.While():
+            t1 = typecheck(node.condition, type_table)
+            if t1 is not types.Bool:
+                raise Exception(
+                    f"{node.loc}: [Type error] while condition must be of type Bool not {t1}"
+                )
             typ = typecheck(node.block, type_table)
             if typ is not types.Unit:
                 raise Exception(
@@ -117,7 +136,7 @@ def typecheck(
                     call_types.append(typecheck(arg, type_table))
                 if func.args != call_types:
                     raise Exception(
-                        f"{node.loc} Type error: Function {node.name} has type {func.name} but it's been called with the following types {call_types}"
+                        f"{node.loc}: [Type error] function {node.name} has type {func.name} but it's been called with the following types {call_types}"
                     )
                 return func.ret
             raise Exception(f"{node.loc}: {node.name} is not a function")

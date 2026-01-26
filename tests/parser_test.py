@@ -13,6 +13,7 @@ from compiler.ast import (
     While,
 )
 from compiler.tokenizer import tokenize
+from compiler.types import Int, Bool, Unit, FunType
 
 
 def test_parser_basics() -> None:
@@ -263,6 +264,34 @@ def test_parser_exceptions() -> None:
     ):
         parse(tokenize("if whatever then var x = 3"))
 
+    # literal after var
+    with pytest.raises(
+        Exception,
+        match=re.escape('(0, 6): expected identifier after var, found "2"'),
+    ):
+        parse(tokenize("var 2 = 3"))
+
+    # wrong type decl
+    with pytest.raises(
+        Exception,
+        match=re.escape('(0, 7): expected type, found "String"'),
+    ):
+        parse(tokenize("var x: String = hey"))
+
+        # wrong type decl
+    with pytest.raises(
+        Exception,
+        match=re.escape('(0, 16): expected "="'),
+    ):
+        parse(tokenize("var almost: Int => Int = print_int"))
+
+        # wrong type decl
+    with pytest.raises(
+        Exception,
+        match=re.escape('(0, 18): extra "," found'),
+    ):
+        parse(tokenize("var almost: (Int, ) => Unit = print_int"))
+
 
 def test_parser_if_then_else() -> None:
     # if a then b + c else x * y
@@ -367,9 +396,21 @@ def test_parser_assignment() -> None:
         Literal(2), "*", Assignment("hello", Identifier("world"))
     )
 
+
+def test_parser_var() -> None:
     assert parse(tokenize("var a = b = c")) == VarDec(
         "a",
         Assignment("b", Identifier("c")),
+    )
+
+    assert parse(tokenize("var x: Int = 2")) == VarDec("x", Literal(2), typ=Int)
+
+    assert parse(tokenize("var x: () => Bool = always_true;")) == Block(
+        [VarDec("x", Identifier("always_true"), typ=FunType([], Bool)), Literal(None)]
+    )
+
+    assert parse(tokenize("var new_print: (Int) => Unit = print_int")) == VarDec(
+        "new_print", Identifier("print_int"), typ=FunType([Int], Unit)
     )
 
 

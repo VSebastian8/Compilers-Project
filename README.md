@@ -3,7 +3,7 @@
 - [x] Tokenizer
 - [x] Parser
 - [x] Interpreter
-- [ ] Type Checker
+- [x] Type Checker
 - [ ] IR Generator
 - [ ] Assembly Generator
 - [ ] Assembler

@@ -48,6 +48,31 @@ def test_tokenizer_op_punct() -> None:
         Token("{", "punctuation", (2, 5)),
     ]
 
+    assert tokenize("var x: Int = 12;") == [
+        Token("var", "identifier"),
+        Token("x", "identifier"),
+        Token(":", "punctuation"),
+        Token("Int", "identifier"),
+        Token("=", "operator"),
+        Token("12", "integer"),
+        Token(";", "punctuation"),
+    ]
+
+    assert tokenize("var compare: (Int, Int) => Bool = print_int") == [
+        Token("var", "identifier"),
+        Token("compare", "identifier"),
+        Token(":", "punctuation"),
+        Token("(", "punctuation"),
+        Token("Int", "identifier"),
+        Token(",", "punctuation"),
+        Token("Int", "identifier"),
+        Token(")", "punctuation"),
+        Token("=>", "punctuation"),
+        Token("Bool", "identifier"),
+        Token("=", "operator"),
+        Token("print_int", "identifier"),
+    ]
+
 
 def test_tokenizer_comments() -> None:
     # Single line

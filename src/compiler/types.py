@@ -28,7 +28,7 @@ class FunType(Type):
     ret: Type
 
     def __init__(self, args: list[Type], ret: Type) -> None:
-        self.name = f'{", ".join(map(str, args))} -> {ret}'
+        self.name = f'({", ".join(map(str, args))}) => {ret}'
         self.args = args
         self.ret = ret
 
