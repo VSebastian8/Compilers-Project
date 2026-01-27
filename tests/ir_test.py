@@ -1,5 +1,4 @@
 from compiler.tokenizer import tokenize
-from compiler.token import Location
 from compiler.parser import parse
 from compiler.typechecker import typecheck
 from compiler.ir_generator import generate_ir
