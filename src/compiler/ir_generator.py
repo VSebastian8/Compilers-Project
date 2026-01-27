@@ -57,16 +57,57 @@ def generate_ir(
             case ast.Identifier():
                 return get_ir_var(expr.name, ir_table)
 
+            case ast.UnaryOp():
+                var_op = get_ir_var(f"unary_{expr.op}", ir_table)
+                var_result = new_var()
+                var_exp = visit(expr.exp, ir_table)
+                ins.append(ir.Call(var_op, [var_exp], var_result, loc=loc))
+                return var_result
+
             case ast.BinaryOp():
                 var_op = get_ir_var(expr.op, ir_table)
-
-                var_left = visit(expr.left, ir_table)
-                var_right = visit(expr.right, ir_table)
+                short = var_op == ir.IRVar("or") or var_op == ir.IRVar("and")
 
                 var_result = new_var()
+                var_left = visit(expr.left, ir_table)
 
+                end_label = new_label() if short else None
+                if end_label is not None:
+                    short_label = new_label()
+                    long_label = new_label()
+                    if var_op == ir.IRVar("or"):
+                        ins.append(
+                            ir.CondJump(var_left, short_label, long_label, loc=loc)
+                        )
+                    elif var_op == ir.IRVar("and"):
+                        ins.append(
+                            ir.CondJump(var_left, long_label, short_label, loc=loc)
+                        )
+                    ins.append(short_label)
+                    ins.append(ir.Copy(var_left, var_result, loc=loc))
+                    ins.append(ir.Jump(end_label, loc=loc))
+                    ins.append(long_label)
+
+                var_right = visit(expr.right, ir_table)
                 ins.append(ir.Call(var_op, [var_left, var_right], var_result, loc=loc))
+
+                if end_label is not None:
+                    ins.append(end_label)
+
                 return var_result
+
+            case ast.Assignment():
+                var_left = get_ir_var(expr.left, ir_table)
+                var_right = visit(expr.right, ir_table)
+                ins.append(ir.Copy(var_left, var_right, loc=loc))
+                return var_left
+
+            case ast.VarDec():
+                var_left = new_var()
+                var_right = visit(expr.right, ir_table)
+                ins.append(ir.Copy(var_left, var_right, loc=loc))
+                ir_table.locals[expr.left] = var_left
+                return var_left
 
             case ast.IfThenElse():
                 if expr.otherwise is None:
