@@ -1,5 +1,6 @@
 from compiler import ir
 from dataclasses import fields
+from compiler.intrinsics import all_intrinsics, IntrinsicArgs
 
 
 class Locals:
@@ -95,8 +96,30 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
                 emit(f"movq %rax, {locals.get_ref(insn.dest)}")
             case ir.CondJump():
                 emit(f"cmpq $0, {locals.get_ref(insn.cond)}")
-                emit(f"jne .L{insn.then_label}")
-                emit(f"jmp .L{insn.else_label}")
+                emit(f"jne .L{insn.then_label.name}")
+                emit(f"jmp .L{insn.else_label.name}")
+            case ir.Call():
+                func = insn.fun.name
+                if func in all_intrinsics:
+                    all_intrinsics[func](
+                        IntrinsicArgs(
+                            [locals.get_ref(arg) for arg in insn.args],
+                            "%rax",
+                            emit,
+                        )
+                    )
+                    emit(f"movq %rax, {locals.get_ref(insn.dest)}")
+                else:
+                    if len(insn.args) > 6:
+                        raise Exception(
+                            f"{insn.loc}: Assembly generator cannot handle funtion {func} with more than 6 arguments"
+                        )
+                    registers = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r"]
+                    for arg, reg in zip(insn.args, registers):
+                        emit(f"movq {locals.get_ref(arg)}, {reg}")
+                    emit(f"callq {func}")
+                    emit(f"movq %rax, {locals.get_ref(insn.dest)}")
+    emit("")
     emit("movq $0, %rax")
     emit("movq %rbp, %rsp")
     emit("popq %rbp")

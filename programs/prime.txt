@@ -1,0 +1,14 @@
+var n: Int = read_int();
+if (n % 2 == 0)
+    then print_int(0)
+    else {
+        var i = 3;
+        var prime = true;
+        while i < n do { 
+            if n % i == 0 then { prime = false; }
+            i = i + 2;
+        }
+        if prime
+            then print_int(1)
+            else print_int(0)
+    }

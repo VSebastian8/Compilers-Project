@@ -57,7 +57,7 @@ top_level: TypeTab = TypeTab(
         "unary_not": FunType([Bool], Bool),
         "print_int": FunType([Int], Unit),
         "print_bool": FunType([Bool], Unit),
-        "read_int": FunType([Unit], Int),
+        "read_int": FunType([], Int),
     },
     None,
 )

@@ -6,13 +6,21 @@ from socketserver import ForkingTCPServer, StreamRequestHandler
 from traceback import format_exception
 from typing import Any
 
+# Compiler imports
+from compiler.tokenizer import tokenize
+from compiler.parser import parse
+from compiler.typechecker import typecheck
+from compiler.ir_generator import generate_ir
+from compiler.assembly_generator import generate_assembly
+from compiler.ir import reserved_names
+from compiler.assembler import assemble_and_get_executable
+
 
 def call_compiler(source_code: str) -> bytes:
-    # *** TODO ***
-    # Call your compiler here and return the compiled executable.
-    # Raise an exception on compilation error.
-    # *** TODO ***
-    raise NotImplementedError("Compiler not implemented")
+    program = parse(tokenize(source_code))
+    typecheck(program)
+    code = generate_assembly(generate_ir(program, reserved_names))
+    return assemble_and_get_executable(code)
 
 
 def main() -> int:
@@ -23,13 +31,13 @@ def main() -> int:
     host = "127.0.0.1"
     port = 3000
     for arg in sys.argv[1:]:
-        if (m := re.fullmatch(r'--output=(.+)', arg)) is not None:
+        if (m := re.fullmatch(r"--output=(.+)", arg)) is not None:
             output_file = m[1]
-        elif (m := re.fullmatch(r'--host=(.+)', arg)) is not None:
+        elif (m := re.fullmatch(r"--host=(.+)", arg)) is not None:
             host = m[1]
-        elif (m := re.fullmatch(r'--port=(.+)', arg)) is not None:
+        elif (m := re.fullmatch(r"--port=(.+)", arg)) is not None:
             port = int(m[1])
-        elif arg.startswith('-'):
+        elif arg.startswith("-"):
             raise Exception(f"Unknown argument: {arg}")
         elif command is None:
             command = arg
@@ -38,9 +46,12 @@ def main() -> int:
         else:
             raise Exception("Multiple input files not supported")
 
-    valid_commands = ['compile', 'serve']
+    valid_commands = ["compile", "serve"]
     if command is None:
-        print(f"Error: command argument missing. Valid commands: {', '.join(valid_commands)}", file=sys.stderr)
+        print(
+            f"Error: command argument missing. Valid commands: {', '.join(valid_commands)}",
+            file=sys.stderr,
+        )
         return 1
 
     if command not in valid_commands:
@@ -56,14 +67,14 @@ def main() -> int:
 
     # === Command implementations ===
 
-    if command == 'compile':
+    if command == "compile":
         source_code = read_source_code()
         if output_file is None:
             raise Exception("Output file flag --output=... required")
         executable = call_compiler(source_code)
-        with open(output_file, 'wb') as f:
+        with open(output_file, "wb") as f:
             f.write(executable)
-    elif command == 'serve':
+    elif command == "serve":
         try:
             run_server(host, port)
         except KeyboardInterrupt:
@@ -89,7 +100,7 @@ def run_server(host: str, port: int) -> None:
                 elif input["command"] == "ping":
                     pass
                 else:
-                    result["error"] = "Unknown command: " + input['command']
+                    result["error"] = "Unknown command: " + input["command"]
             except Exception as e:
                 result["error"] = "".join(format_exception(e))
             result_str = json.dumps(result)
@@ -100,5 +111,5 @@ def run_server(host: str, port: int) -> None:
         server.serve_forever()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

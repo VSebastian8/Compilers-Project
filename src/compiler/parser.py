@@ -55,10 +55,10 @@ def parse(tokens: list[Token]) -> ast.Expression:
             return parse_unary_op()
         elif peek().text == "true":
             consume("true")
-            return ast.Literal(True)
+            return ast.Literal(True, loc=peek().loc)
         elif peek().text == "false":
             consume("false")
-            return ast.Literal(False)
+            return ast.Literal(False, loc=peek().loc)
         elif peek().ttype == "identifier":
             token = consume()
             if peek().text == "(":

@@ -28,7 +28,7 @@ pushq %rbp
 movq %rsp, %rbp
 subq $56, %rsp
 
-# LoadBoolConst((-1, -1), True, X_2)
+# LoadBoolConst((0, 14), True, X_2)
 movq $1, -8(%rbp)
 
 # Copy((0, 2), X_2, X_1)
@@ -37,8 +37,8 @@ movq %rax, -16(%rbp)
 
 # CondJump((0, 16), X_1, Label((-1, -1), L_0), Label((-1, -1), L_1))
 cmpq $0, -16(%rbp)
-jne .LLabel((-1, -1), L_0)
-jmp .LLabel((-1, -1), L_1)
+jne .LL_0
+jmp .LL_1
 
 # Label((-1, -1), L_0)
 .LL_0:
@@ -69,6 +69,7 @@ movq %rax, -32(%rbp)
 # Copy((0, 0), unit, X_0)
 movq -48(%rbp), %rax
 movq %rax, -56(%rbp)
+
 movq $0, %rax
 movq %rbp, %rsp
 popq %rbp
