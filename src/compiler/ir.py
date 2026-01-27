@@ -102,4 +102,4 @@ class IRTab:
     parent: Self | None
 
 
-reserved_names: set[str] = set(top_level.locals.keys())
+reserved_names: set[str] = set(top_level.locals.keys()) | {"=="}

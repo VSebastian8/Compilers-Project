@@ -4,7 +4,7 @@
 - [x] Parser
 - [x] Interpreter
 - [x] Type Checker
-- [ ] IR Generator
+- [x] IR Generator
 - [ ] Assembly Generator
 - [ ] Assembler
 

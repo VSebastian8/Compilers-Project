@@ -99,15 +99,15 @@ def generate_ir(
             case ast.Assignment():
                 var_left = get_ir_var(expr.left, ir_table)
                 var_right = visit(expr.right, ir_table)
-                ins.append(ir.Copy(var_left, var_right, loc=loc))
+                ins.append(ir.Copy(var_right, var_left, loc=loc))
                 return var_left
 
             case ast.VarDec():
                 var_left = new_var()
                 var_right = visit(expr.right, ir_table)
-                ins.append(ir.Copy(var_left, var_right, loc=loc))
+                ins.append(ir.Copy(var_right, var_left, loc=loc))
                 ir_table.locals[expr.left] = var_left
-                return var_left
+                return var_unit
 
             case ast.IfThenElse():
                 if expr.otherwise is None:
@@ -127,21 +127,48 @@ def generate_ir(
                     l_else = new_label()
                     l_end = new_label()
 
-                    var_res = new_var()
+                    var_result = new_var()
                     var_cond = visit(expr.condition, ir_table)
                     ins.append(ir.CondJump(var_cond, l_then, l_else, loc=loc))
 
                     ins.append(l_then)
                     var_then = visit(expr.then, ir_table)
-                    ins.append(ir.Copy(var_then, var_res, loc=loc))
+                    ins.append(ir.Copy(var_then, var_result, loc=loc))
                     ins.append(ir.Jump(l_end, loc=loc))
 
                     ins.append(l_else)
                     var_else = visit(expr.otherwise, ir_table)
-                    ins.append(ir.Copy(var_else, var_res, loc=loc))
+                    ins.append(ir.Copy(var_else, var_result, loc=loc))
                     ins.append(l_end)
 
-                    return var_res
+                    return var_result
+
+            case ast.FunctionCall():
+                var_f = get_ir_var(expr.name, ir_table)
+                var_result = new_var()
+                args = [visit(arg, ir_table) for arg in expr.args]
+                ins.append(ir.Call(var_f, args, var_result, loc=loc))
+                return var_result
+
+            case ast.Block():
+                var_result = new_var()
+                new_scope = ir.IRTab({}, ir_table)
+                exps = [visit(exp, new_scope) for exp in expr.expressions]
+                ins.append(ir.Copy(exps[-1], var_result, loc=loc))
+                return var_result
+
+            case ast.While():
+                l_cond = new_label()
+                l_block = new_label()
+                l_end = new_label()
+                ins.append(l_cond)
+                var_cond = visit(expr.condition, ir_table)
+                ins.append(ir.CondJump(var_cond, l_block, l_end, loc=loc))
+                ins.append(l_block)
+                visit(expr.block, ir_table)
+                ins.append(ir.Jump(l_cond, loc=loc))
+                ins.append(l_end)
+                return var_unit
 
         return var_unit
 

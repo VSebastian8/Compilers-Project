@@ -1,4 +1,5 @@
 from compiler.tokenizer import tokenize
+from compiler.token import Location
 from compiler.parser import parse
 from compiler.typechecker import typecheck
 from compiler.ir_generator import generate_ir
@@ -73,4 +74,63 @@ def test_ir_basics() -> None:
 
 
 def test_ir_blocks() -> None:
-    assert True
+    assert (
+        generate_ir(
+            get_ast(
+                """
+                var n: Int = 11;
+                var i = 2; var done = false;
+                while i <= n and done == false do {
+                    print_int(i);
+                    var i = n % i;
+                    if i == 0 then {
+                        done = true;
+                    }
+                }
+                """
+            ),
+            reserved_names,
+        )
+        == [
+            LoadIntConst(value=11, dest=IRVar("X_2")),
+            Copy(source=IRVar("X_2"), dest=IRVar("X_1")),
+            LoadIntConst(value=2, dest=IRVar("X_4")),
+            Copy(source=IRVar("X_4"), dest=IRVar("X_3")),
+            LoadBoolConst(value=False, dest=IRVar("X_6")),
+            Copy(source=IRVar("X_6"), dest=IRVar("X_5")),
+            Label("L_0"),
+            Call(fun=IRVar("<="), args=[IRVar("X_3"), IRVar("X_1")], dest=IRVar("X_8")),
+            CondJump(IRVar("X_8"), Label("L_5"), Label("L_4")),
+            Label("L_4"),
+            Copy(source=IRVar("X_8"), dest=IRVar("X_7")),
+            Jump(Label("L_3")),
+            Label("L_5"),
+            LoadBoolConst(value=False, dest=IRVar("X_10")),
+            Call(
+                fun=IRVar("=="), args=[IRVar("X_5"), IRVar("X_10")], dest=IRVar("X_9")
+            ),
+            Call(
+                fun=IRVar("and"), args=[IRVar("X_8"), IRVar("X_9")], dest=IRVar("X_7")
+            ),
+            Label("L_3"),
+            CondJump(IRVar("X_7"), Label("L_1"), Label("L_2")),
+            Label("L_1"),
+            Call(fun=IRVar("print_int"), args=[IRVar("X_3")], dest=IRVar("X_12")),
+            Call(fun=IRVar("%"), args=[IRVar("X_1"), IRVar("X_3")], dest=IRVar("X_14")),
+            Copy(source=IRVar("X_14"), dest=IRVar("X_13")),
+            LoadIntConst(value=0, dest=IRVar("X_16")),
+            Call(
+                fun=IRVar("=="), args=[IRVar("X_13"), IRVar("X_16")], dest=IRVar("X_15")
+            ),
+            CondJump(IRVar("X_15"), Label("L_6"), Label("L_7")),
+            Label("L_6"),
+            LoadBoolConst(value=True, dest=IRVar("X_18")),
+            Copy(source=IRVar("X_18"), dest=IRVar("X_5")),
+            Copy(source=IRVar("unit"), dest=IRVar("X_17")),
+            Label("L_7"),
+            Copy(source=IRVar("unit"), dest=IRVar("X_11")),
+            Jump(Label("L_0")),
+            Label("L_2"),
+            Copy(source=IRVar("unit"), dest=IRVar("X_0")),
+        ]
+    )
