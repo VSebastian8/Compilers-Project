@@ -59,6 +59,12 @@ def parse(tokens: list[Token]) -> ast.Expression:
         elif peek().text == "false":
             consume("false")
             return ast.Literal(False, loc=peek().loc)
+        elif peek().text == "break":
+            consume("break")
+            return ast.LoopControl("break")
+        elif peek().text == "continue":
+            consume("continue")
+            return ast.LoopControl("continue")
         elif peek().ttype == "identifier":
             token = consume()
             if peek().text == "(":
@@ -138,18 +144,6 @@ def parse(tokens: list[Token]) -> ast.Expression:
         consume(")")
         return ast.FunctionCall(token.text, args, loc=token.loc)
 
-    # ; is optional after
-    def ends_in_block(exp: ast.Expression) -> bool:
-        if isinstance(exp, ast.Block) or isinstance(exp, ast.While):
-            return True
-        if isinstance(exp, ast.IfThenElse):
-            match (exp.otherwise):
-                case None:
-                    return ends_in_block(exp.then)
-                case e:
-                    return ends_in_block(e)
-        return False
-
     def parse_type() -> types.Type:
         if peek().text == "Int":
             consume("Int")
@@ -214,7 +208,8 @@ def parse(tokens: list[Token]) -> ast.Expression:
                 if pos == len(tokens):
                     break
             else:
-                if ends_in_block(exp):
+                # ; is optional after }
+                if tokens[pos - 1].text == "}":
                     continue
                 if peek().text != "}":
                     raise Exception(f"{peek().loc}: missing ;")

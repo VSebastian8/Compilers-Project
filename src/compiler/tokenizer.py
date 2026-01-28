@@ -4,6 +4,8 @@ from compiler.token import Token, TokenType
 
 def tokenize(source_code: str) -> list[Token]:
     """Transforms source code string into a list of tokens"""
+    source_code += "\n"
+
     whitespace = re.compile(r"[\t\n ]+")
     line_comment = re.compile("(#|//)(.*)\n")
     multi_line_comment = re.compile(r"/\*[\s\S]*?\*/")

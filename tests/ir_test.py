@@ -66,7 +66,7 @@ def test_ir_basics() -> None:
         Jump(Label("L_0")),
         Label("L_2"),
         LoadBoolConst(False, IRVar("X_2")),
-        Call(IRVar("and"), [IRVar("X_1"), IRVar("X_2")], IRVar("X_0")),
+        Copy(IRVar("X_2"), IRVar("X_0")),
         Label("L_0"),
         Call(IRVar("print_bool"), [IRVar("X_0")], IRVar("unit")),
     ]
@@ -108,9 +108,7 @@ def test_ir_blocks() -> None:
             Call(
                 fun=IRVar("=="), args=[IRVar("X_5"), IRVar("X_10")], dest=IRVar("X_9")
             ),
-            Call(
-                fun=IRVar("and"), args=[IRVar("X_8"), IRVar("X_9")], dest=IRVar("X_7")
-            ),
+            Copy(source=IRVar("X_9"), dest=IRVar("X_7")),
             Label("L_3"),
             CondJump(IRVar("X_7"), Label("L_1"), Label("L_2")),
             Label("L_1"),

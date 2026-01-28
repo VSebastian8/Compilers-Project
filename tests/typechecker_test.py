@@ -15,7 +15,7 @@ def test_typechecker_basics() -> None:
 
     assert typecheck(parse(tokenize("10 + 2 * 2 >= 5 or false"))) == Bool
 
-    assert typecheck(parse(tokenize("var x: Int = 7"))) == Int
+    assert typecheck(parse(tokenize("var x: Int = 7"))) == Unit
 
     assert typecheck(parse(tokenize("var f: (Int) => Unit = print_int;"))) == Unit
 
@@ -58,7 +58,7 @@ def test_typechecker_blocks() -> None:
                 "y",
                 Literal(202, loc=Location(1, 25), typ=Int),
                 loc=Location(1, 12),
-                typ=Int,
+                typ=Unit,
             ),
             Block(
                 [
@@ -66,13 +66,13 @@ def test_typechecker_blocks() -> None:
                         "x",
                         Identifier("y", loc=Location(3, 24), typ=Int),
                         loc=Location(3, 16),
-                        typ=Int,
+                        typ=Unit,
                     ),
                     VarDec(
                         "reversed",
                         Literal(0, loc=Location(4, 31), typ=Int),
                         loc=Location(4, 16),
-                        typ=Int,
+                        typ=Unit,
                     ),
                     While(
                         BinaryOp(
@@ -151,6 +151,14 @@ def test_typechecker_blocks() -> None:
 
 def test_typechecker_errors() -> None:
     import pytest, re
+
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "(0, 0): [Type error] cannot apply operator not to value of type Int"
+        ),
+    ):
+        typecheck(parse(tokenize("not(1 + 1)")))
 
     with pytest.raises(
         Exception,

@@ -34,7 +34,12 @@ def generate_ir(
 
     ins: list[ir.Instruction] = []
 
-    def visit(expr: ast.Expression, ir_table: ir.IRTab) -> ir.IRVar:
+    def visit(
+        expr: ast.Expression,
+        ir_table: ir.IRTab,
+        while_start: None | ir.Label = None,
+        while_end: None | ir.Label = None,
+    ) -> ir.IRVar:
         loc = expr.loc
 
         match expr:
@@ -60,19 +65,18 @@ def generate_ir(
             case ast.UnaryOp():
                 var_op = get_ir_var(f"unary_{expr.op}", ir_table)
                 var_result = new_var()
-                var_exp = visit(expr.exp, ir_table)
+                var_exp = visit(expr.exp, ir_table, while_start, while_end)
                 ins.append(ir.Call(var_op, [var_exp], var_result, loc=loc))
                 return var_result
 
             case ast.BinaryOp():
                 var_op = get_ir_var(expr.op, ir_table)
-                short = var_op == ir.IRVar("or") or var_op == ir.IRVar("and")
-
                 var_result = new_var()
-                var_left = visit(expr.left, ir_table)
+                var_left = visit(expr.left, ir_table, while_start, while_end)
 
-                end_label = new_label() if short else None
-                if end_label is not None:
+                if var_op == ir.IRVar("or") or var_op == ir.IRVar("and"):
+                    end_label = new_label()
+
                     short_label = new_label()
                     long_label = new_label()
                     if var_op == ir.IRVar("or"):
@@ -86,25 +90,28 @@ def generate_ir(
                     ins.append(short_label)
                     ins.append(ir.Copy(var_left, var_result, loc=loc))
                     ins.append(ir.Jump(end_label, loc=loc))
+
                     ins.append(long_label)
-
-                var_right = visit(expr.right, ir_table)
-                ins.append(ir.Call(var_op, [var_left, var_right], var_result, loc=loc))
-
-                if end_label is not None:
+                    var_right = visit(expr.right, ir_table, while_start, while_end)
+                    ins.append(ir.Copy(var_right, var_result, loc=loc))
                     ins.append(end_label)
+                else:
+                    var_right = visit(expr.right, ir_table, while_start, while_end)
+                    ins.append(
+                        ir.Call(var_op, [var_left, var_right], var_result, loc=loc)
+                    )
 
                 return var_result
 
             case ast.Assignment():
                 var_left = get_ir_var(expr.left, ir_table)
-                var_right = visit(expr.right, ir_table)
+                var_right = visit(expr.right, ir_table, while_start, while_end)
                 ins.append(ir.Copy(var_right, var_left, loc=loc))
                 return var_left
 
             case ast.VarDec():
                 var_left = new_var()
-                var_right = visit(expr.right, ir_table)
+                var_right = visit(expr.right, ir_table, while_start, while_end)
                 ins.append(ir.Copy(var_right, var_left, loc=loc))
                 ir_table.locals[expr.left] = var_left
                 return var_unit
@@ -118,7 +125,7 @@ def generate_ir(
                     ins.append(ir.CondJump(var_cond, l_then, l_end, loc=loc))
 
                     ins.append(l_then)
-                    visit(expr.then, ir_table)
+                    visit(expr.then, ir_table, while_start, while_end)
                     ins.append(l_end)
 
                     return var_unit
@@ -132,12 +139,12 @@ def generate_ir(
                     ins.append(ir.CondJump(var_cond, l_then, l_else, loc=loc))
 
                     ins.append(l_then)
-                    var_then = visit(expr.then, ir_table)
+                    var_then = visit(expr.then, ir_table, while_start, while_end)
                     ins.append(ir.Copy(var_then, var_result, loc=loc))
                     ins.append(ir.Jump(l_end, loc=loc))
 
                     ins.append(l_else)
-                    var_else = visit(expr.otherwise, ir_table)
+                    var_else = visit(expr.otherwise, ir_table, while_start, while_end)
                     ins.append(ir.Copy(var_else, var_result, loc=loc))
                     ins.append(l_end)
 
@@ -153,7 +160,10 @@ def generate_ir(
             case ast.Block():
                 var_result = new_var()
                 new_scope = ir.IRTab({}, ir_table)
-                exps = [visit(exp, new_scope) for exp in expr.expressions]
+                exps = [
+                    visit(exp, new_scope, while_start, while_end)
+                    for exp in expr.expressions
+                ]
                 ins.append(ir.Copy(exps[-1], var_result, loc=loc))
                 return var_result
 
@@ -165,9 +175,20 @@ def generate_ir(
                 var_cond = visit(expr.condition, ir_table)
                 ins.append(ir.CondJump(var_cond, l_block, l_end, loc=loc))
                 ins.append(l_block)
-                visit(expr.block, ir_table)
+                visit(expr.block, ir_table, while_start=l_cond, while_end=l_end)
                 ins.append(ir.Jump(l_cond, loc=loc))
                 ins.append(l_end)
+                return var_unit
+
+            case ast.LoopControl():
+                if while_start is None or while_end is None:
+                    raise Exception(
+                        f"{expr.loc}: cannot have {expr.name} outside of while loop"
+                    )
+                if expr.name == "break":
+                    ins.append(ir.Jump(while_end, loc=loc))
+                else:
+                    ins.append(ir.Jump(while_start, loc=loc))
                 return var_unit
 
         return var_unit

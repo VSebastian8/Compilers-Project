@@ -1,0 +1,13 @@
+var i = 0;
+while i == 0 do {
+    while true do {
+        i = i + 1;
+        if i % 2 == 0 
+            then continue
+            else if i == 11 then break;
+        print_int(i)
+    }
+    print_bool(true);
+    continue;
+    print_bool(true)
+}

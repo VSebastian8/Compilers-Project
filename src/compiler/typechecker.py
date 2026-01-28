@@ -58,7 +58,7 @@ def get_type(
                     f"{node.loc}: [Type error] assigned type {typ} conflicts with declared type {node.typ}"
                 )
             type_table.locals[name] = typ
-            return typ
+            return types.Unit
 
         case ast.Assignment():
             name = node.left
@@ -74,8 +74,10 @@ def get_type(
             typ = typecheck(node.exp, type_table)
             op = get_var_type(f"unary_{node.op}", type_table)
             if isinstance(op, types.FunType):
-                if op.args[0] is not typ:
-                    f"{node.loc}: [Type error] cannot apply operator {node.op} to value of type {typ}"
+                if op.args[0] != typ:
+                    raise Exception(
+                        f"{node.loc}: [Type error] cannot apply operator {node.op} to value of type {typ}"
+                    )
                 return op.ret
             raise Exception(f"{node.loc}: {node.op} is not an operator")
 
@@ -104,6 +106,8 @@ def get_type(
                     f"{node.loc}: [Type error] if condition must be of type Bool not {t1}"
                 )
             t2 = typecheck(node.then, type_table)
+            if node.otherwise is None and isinstance(node.then, ast.Block):
+                return types.Unit
             t3 = (
                 types.Unit
                 if node.otherwise is None
@@ -147,5 +151,8 @@ def get_type(
             for exp in node.expressions:
                 return_val = typecheck(exp, new_scope)
             return return_val
+
+        case ast.LoopControl():
+            return types.Unit
 
     return types.Unit

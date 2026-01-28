@@ -20,7 +20,7 @@
 - [x] Assignment statements (right-associative)
 - [x] if-then and if-then-else
 - [x] while loops
-- [ ] break and continue
+- [x] break and continue
 - [ ] functions
 
 ## Example Program

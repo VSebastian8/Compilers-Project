@@ -70,3 +70,8 @@ class Block(Expression):
 class While(Expression):
     condition: Expression
     block: Block
+
+
+@dataclass
+class LoopControl(Expression):
+    name: str  # break or continue

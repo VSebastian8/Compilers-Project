@@ -10,7 +10,11 @@ class Locals:
     _stack_used: int
 
     def __init__(self, variables: list[ir.IRVar]) -> None:
-        self._var_to_location = {}
+        self._var_to_location = {
+            ir.IRVar("print_int"): "print_int(%rip)",
+            ir.IRVar("print_bool"): "print_bool(%rip)",
+            ir.IRVar("read_int"): "read_int(%rip)",
+        }
         current = 0
         for var in variables:
             if var not in self._var_to_location:
@@ -92,7 +96,10 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
             case ir.Jump():
                 emit(f"jmp .L{insn.label.name}")
             case ir.Copy():
-                emit(f"movq {locals.get_ref(insn.source)}, %rax")
+                if insn.source.name in ["print_int", "print_bool", "read_int"]:
+                    emit(f"leaq {insn.source.name}(%rip), %rax")
+                else:
+                    emit(f"movq {locals.get_ref(insn.source)}, %rax")
                 emit(f"movq %rax, {locals.get_ref(insn.dest)}")
             case ir.CondJump():
                 emit(f"cmpq $0, {locals.get_ref(insn.cond)}")
@@ -117,7 +124,11 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
                     registers = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r"]
                     for arg, reg in zip(insn.args, registers):
                         emit(f"movq {locals.get_ref(arg)}, {reg}")
-                    emit(f"callq {func}")
+                    if insn.fun.name[0] == "X":
+                        emit(f"movq {locals.get_ref(insn.fun)}, %rax")
+                    else:
+                        emit(f"leaq {locals.get_ref(insn.fun)}, %rax")
+                    emit(f"callq *%rax")
                     emit(f"movq %rax, {locals.get_ref(insn.dest)}")
     emit("")
     emit("movq $0, %rax")

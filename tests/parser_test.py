@@ -11,6 +11,7 @@ from compiler.ast import (
     VarDec,
     Block,
     While,
+    LoopControl,
 )
 from compiler.tokenizer import tokenize
 from compiler.types import Int, Bool, Unit, FunType
@@ -510,4 +511,27 @@ def test_parser_block() -> None:
             Literal(14),
             FunctionCall("print", [Identifier("x")]),
         ]
+    )
+
+    assert parse(tokenize("var x = { 42 } print(x)")) == Block(
+        [
+            VarDec("x", Block([Literal(42)])),
+            FunctionCall("print", [Identifier("x")]),
+        ]
+    )
+
+    assert parse(
+        tokenize("while true do { var x = 2; if x == 2 then break else continue }")
+    ) == While(
+        Literal(True),
+        Block(
+            [
+                VarDec("x", Literal(2)),
+                IfThenElse(
+                    BinaryOp(Identifier("x"), "==", Literal(2)),
+                    LoopControl("break"),
+                    LoopControl("continue"),
+                ),
+            ]
+        ),
     )
