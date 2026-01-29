@@ -493,9 +493,7 @@ def test_parser_var() -> None:
 
     assert parse(tokenize("var x: () => Bool = always_true;")) == Module(
         [],
-        [
-            VarDec("x", Identifier("always_true"), typ=FunType([], Bool)),
-        ],
+        [VarDec("x", Identifier("always_true"), typ=FunType([], Bool)), Literal(None)],
     )
 
     assert parse(tokenize("var new_print: (Int) => Unit = print_int")) == Module(

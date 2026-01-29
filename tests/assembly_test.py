@@ -26,7 +26,7 @@ def test_assembly_gen() -> None:
 main:
 pushq %rbp
 movq %rsp, %rbp
-subq $56, %rsp
+subq $48, %rsp
 
 # LoadBoolConst((0, 10), True, X_2)
 movq $1, -8(%rbp)
@@ -67,11 +67,10 @@ movq %rax, -32(%rbp)
 .LL_2:
 
 # Copy((0, 0), unit, X_0)
-movq -48(%rbp), %rax
-movq %rax, -56(%rbp)
 
 movq $0, %rax
 movq %rbp, %rsp
 popq %rbp
-ret"""
+ret
+"""
     )

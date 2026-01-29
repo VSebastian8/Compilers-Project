@@ -21,7 +21,7 @@
 - [x] if-then and if-then-else
 - [x] while loops
 - [x] break and continue
-- [ ] functions
+- [x] functions
 
 ## Example Program
 

@@ -152,7 +152,6 @@ def get_type(
 
         case ast.Block():
             new_scope = types.TypeTab({}, type_table)
-            print(f"In block scope {new_scope}")
             return_val = types.Unit
             for exp in node.expressions:
                 return_val = typecheck(exp, new_scope, fun_type)
@@ -164,8 +163,9 @@ def get_type(
         case ast.FunDef():
             new_scope = types.TypeTab({}, type_table)
             for arg in node.args:
+                if arg.name in new_scope.locals:
+                    raise Exception(f"{arg.loc}: name clash between two parameters")
                 new_scope.locals[arg.name] = arg.typ
-            print(f"In fun {node.name} locals {new_scope.locals}")
             typecheck(node.body, new_scope, node.typ)
             return node.typ
 

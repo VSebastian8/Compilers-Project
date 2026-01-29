@@ -1,0 +1,26 @@
+fun square(x: Int): Int {
+    return x * x;
+}
+
+fun vec_len_squared(x: Int, y: Int): Int {
+    return square(x) + square(y);
+}
+
+fun print_int_twice(x: Int): Unit {
+    print_int(x);
+    print_int(x);
+}
+
+fun f(bye: Int): Unit {
+    if bye == 0 
+        then print_bool(true)
+        else g(bye / 10)
+}
+
+fun g(hi: Int) : Unit {
+    print_int(hi);
+    f(hi)
+}
+
+print_int_twice(vec_len_squared(3, 4));
+g(215)

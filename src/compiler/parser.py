@@ -265,7 +265,9 @@ def parse(tokens: list[Token]) -> ast.Module:
     def parse_module() -> ast.Module:
         funs = []
         exps = []
-        while True:
+        void = True
+        while pos < len(tokens):
+            void = False
             if pos == len(tokens):
                 break
             if peek().text == "fun":
@@ -274,13 +276,15 @@ def parse(tokens: list[Token]) -> ast.Module:
                 exps.append(parse_var() if peek().text == "var" else parse_expression())
                 if pos == len(tokens):
                     break
-                if tokens[pos - 1].text == "}":
-                    continue
                 if peek().text == ";":
+                    void = True
                     consume(";")
                 else:
+                    if tokens[pos - 1].text == "}":
+                        continue
                     break
-
+        if void:
+            exps.append(ast.Literal(None))
         return ast.Module(funs, exps)
 
     # Finall Parser Function Call

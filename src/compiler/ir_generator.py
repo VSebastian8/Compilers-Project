@@ -14,7 +14,10 @@ def get_ir_var(var: str, ir_table: ir.IRTab) -> ir.IRVar:
                 return get_ir_var(var, ir_tab)
 
 
-def generate_ir(mod: ast.Module, reserved_names: set[str]) -> list[ir.Instruction]:
+def generate_ir(
+    mod: ast.Module, reserved_names: set[str]
+) -> dict[str, list[ir.Instruction]]:
+    """Returns the instructions for each function"""
     var_unit = ir.IRVar("unit")
 
     current_var = -1
@@ -189,26 +192,57 @@ def generate_ir(mod: ast.Module, reserved_names: set[str]) -> list[ir.Instructio
                     ins.append(ir.Jump(while_start, loc=loc))
                 return var_unit
 
+            case ast.Return():
+                var_res = visit(expr.value, ir_table)
+                ins.append(ir.Copy(var_res, ir.IRVar("%rax"), loc=loc))
+                ins.append(ir.Jump(exit_label, loc=loc))
+
         return var_unit
 
     root_irtab = ir.IRTab({}, None)
     for name in reserved_names:
         root_irtab.locals[name] = ir.IRVar(name)
+    for fun in mod.funs:
+        root_irtab.locals[fun.name] = ir.IRVar(fun.name)
 
+    fun_insn: dict[str, list[ir.Instruction]] = {}
+
+    registers = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"]
+    for fun in mod.funs:
+        ins = []
+        new_table = ir.IRTab({}, root_irtab)
+        for arg, reg in zip(fun.args, registers):
+            arg_var = new_var()
+            new_table.locals[arg.name] = arg_var
+            ins.append(ir.Copy(ir.IRVar(reg), arg_var, loc=fun.loc))
+        exit_label = new_label()
+        visit(fun.body, new_table)
+        ins.append(exit_label)
+        fun_insn[fun.name] = ins.copy()
+
+    ins = []
     var_final_result = var_unit
+    new_table = ir.IRTab({}, root_irtab)
     for exp in mod.exps:
-        var_final_result = visit(exp, root_irtab)
-
-    if mod.exps[-1].typ == Int:
-        ins.append(
-            ir.Call(
-                ir.IRVar("print_int"), [var_final_result], var_unit, loc=Location(0, 0)
+        var_final_result = visit(exp, new_table)
+    if len(mod.exps) != 0:
+        if mod.exps[-1].typ == Int:
+            ins.append(
+                ir.Call(
+                    ir.IRVar("print_int"),
+                    [var_final_result],
+                    var_unit,
+                    loc=Location(0, 0),
+                )
             )
-        )
-    elif mod.exps[-1].typ == Bool:
-        ins.append(
-            ir.Call(
-                ir.IRVar("print_bool"), [var_final_result], var_unit, loc=Location(0, 0)
+        elif mod.exps[-1].typ == Bool:
+            ins.append(
+                ir.Call(
+                    ir.IRVar("print_bool"),
+                    [var_final_result],
+                    var_unit,
+                    loc=Location(0, 0),
+                )
             )
-        )
-    return ins
+    fun_insn["main"] = ins.copy()
+    return fun_insn
