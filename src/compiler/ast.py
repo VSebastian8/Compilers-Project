@@ -80,6 +80,13 @@ class LoopControl(Expression):
 @dataclass
 class FunDef(Expression):
     name: str
+    args: list[Identifier]
+    body: Block
+
+
+@dataclass
+class Return(Expression):
+    value: Expression
 
 
 @dataclass

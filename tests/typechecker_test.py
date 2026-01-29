@@ -1,8 +1,8 @@
-from compiler.tokenizer import tokenize
 from compiler.token import Location
+from compiler.tokenizer import tokenize
 from compiler.parser import parse
 from compiler.typechecker import typecheck
-from compiler.types import Int, Bool, Unit
+from compiler.types import Int, Bool, Unit, FunType
 from compiler.ast import (
     Block,
     Literal,
@@ -11,6 +11,9 @@ from compiler.ast import (
     VarDec,
     Identifier,
     BinaryOp,
+    FunctionCall,
+    FunDef,
+    Return,
     Module,
 )
 
@@ -157,6 +160,76 @@ def test_typechecker_blocks() -> None:
     )
 
 
+def test_typechecker_fundef() -> None:
+    fun = parse(
+        tokenize(
+            """
+                fun square(x: Int): Int {
+                    return x * x;
+                }
+                fun vec_len_squared(x: Int, y: Int): Int {
+                    return square(x) + square(y);
+                }
+                vec_len_squared(4, 5)
+                """
+        )
+    )
+    assert typecheck(fun) == Int
+    assert fun == Module(
+        [
+            FunDef(
+                "square",
+                [Identifier("x", typ=Int)],
+                Block(
+                    [
+                        Return(
+                            BinaryOp(
+                                Identifier("x", typ=Int),
+                                "*",
+                                Identifier("x", typ=Int),
+                                typ=Int,
+                            ),
+                            typ=Int,
+                        ),
+                        Literal(None, typ=Unit),
+                    ],
+                    typ=Unit,
+                ),
+                typ=FunType([Int], Int),
+            ),
+            FunDef(
+                "vec_len_squared",
+                [Identifier("x", typ=Int), Identifier("y", typ=Int)],
+                Block(
+                    [
+                        Return(
+                            BinaryOp(
+                                FunctionCall(
+                                    "square", [Identifier("x", typ=Int)], typ=Int
+                                ),
+                                "+",
+                                FunctionCall(
+                                    "square", [Identifier("y", typ=Int)], typ=Int
+                                ),
+                                typ=Int,
+                            ),
+                            typ=Int,
+                        ),
+                        Literal(None, typ=Unit),
+                    ],
+                    typ=Unit,
+                ),
+                typ=FunType([Int, Int], Int),
+            ),
+        ],
+        [
+            FunctionCall(
+                "vec_len_squared", [Literal(4, typ=Int), Literal(5, typ=Int)], typ=Int
+            )
+        ],
+    )
+
+
 def test_typechecker_errors() -> None:
     import pytest, re
 
@@ -216,3 +289,11 @@ def test_typechecker_errors() -> None:
         ),
     ):
         typecheck(parse(tokenize("var index: Bool = 0;")))
+
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "(0, 26): return type Bool doesn't match function type (Int) => Int"
+        ),
+    ):
+        typecheck(parse(tokenize("fun square(x: Int): Int { return true; }")))

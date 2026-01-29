@@ -41,6 +41,7 @@ def parse(tokens: list[Token]) -> ast.Module:
 
     # Integer or identifier or ()
     def parse_factor() -> ast.Expression:
+        loc = peek().loc
         if peek().text == "(":
             return parse_parenthesized()
         elif peek().text == "{":
@@ -55,18 +56,21 @@ def parse(tokens: list[Token]) -> ast.Module:
             return parse_unary_op()
         elif peek().text == "true":
             consume("true")
-            return ast.Literal(True, loc=peek().loc)
+            return ast.Literal(True, loc=loc)
         elif peek().text == "false":
             consume("false")
-            return ast.Literal(False, loc=peek().loc)
+            return ast.Literal(False, loc=loc)
         elif peek().text == "break":
             consume("break")
-            return ast.LoopControl("break")
+            return ast.LoopControl("break", loc=loc)
         elif peek().text == "continue":
             consume("continue")
-            return ast.LoopControl("continue")
-        elif peek().text == "def":
-            raise Exception(f"{peek().loc}: can only define functions at top level")
+            return ast.LoopControl("continue", loc=loc)
+        elif peek().text == "fun":
+            raise Exception(f"{loc}: can only define functions at top level")
+        elif peek().text == "return":
+            consume("return")
+            return ast.Return(parse_expression(), loc=loc)
         elif peek().ttype == "identifier":
             token = consume()
             if peek().text == "(":
@@ -77,7 +81,7 @@ def parse(tokens: list[Token]) -> ast.Module:
                 raise Exception(
                     f"{peek().loc}: variable declaration only allowed inside blocks"
                 )
-            return ast.Identifier(token.text, loc=token.loc)
+            return ast.Identifier(token.text, loc=loc)
         else:
             raise Exception(f"{peek().loc}: unexpected token {peek().text}")
 
@@ -226,11 +230,37 @@ def parse(tokens: list[Token]) -> ast.Module:
         return ast.While(condition, block, loc=loc)
 
     def parse_fundef() -> ast.FunDef:
-        consume("def")
+        consume("fun")
         token = consume()
+        args = []
+        arg_types = []
         if token.ttype != "identifier":
             raise Exception(f"{token.loc}: function name must be an identifier")
-        return ast.FunDef(token.text, loc=token.loc)
+        consume("(")
+        while not peek().text == ")":
+            param = consume()
+            if param.ttype != "identifier":
+                raise Exception(
+                    f"{param.loc}: expected function parameter, found {param.text}"
+                )
+            consume(":")
+            typ = parse_type()
+            args.append(ast.Identifier(param.text, typ=typ, loc=param.loc))
+            arg_types.append(typ)
+            if peek().text != ",":
+                break
+            consume(",")
+        consume(")")
+        consume(":")
+        ret = parse_type()
+        body = parse_block()
+        return ast.FunDef(
+            token.text,
+            args,
+            body,
+            typ=types.FunType(arg_types, ret),
+            loc=token.loc,
+        )
 
     def parse_module() -> ast.Module:
         funs = []
@@ -238,7 +268,7 @@ def parse(tokens: list[Token]) -> ast.Module:
         while True:
             if pos == len(tokens):
                 break
-            if peek().text == "def":
+            if peek().text == "fun":
                 funs.append(parse_fundef())
             else:
                 exps.append(parse_var() if peek().text == "var" else parse_expression())

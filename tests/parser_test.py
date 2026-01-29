@@ -13,6 +13,8 @@ from compiler.ast import (
     While,
     LoopControl,
     Module,
+    FunDef,
+    Return,
 )
 from compiler.tokenizer import tokenize
 from compiler.types import Int, Bool, Unit, FunType
@@ -654,4 +656,34 @@ def test_parser_block() -> None:
                 ),
             )
         ],
+    )
+
+
+def test_parser_fundef() -> None:
+    assert (
+        parse(
+            tokenize(
+                """
+        fun square(x: Int): Int {
+            return x * x;
+        }
+            """
+            )
+        )
+        == Module(
+            [
+                FunDef(
+                    "square",
+                    [Identifier("x", typ=Int)],
+                    Block(
+                        [
+                            Return(BinaryOp(Identifier("x"), "*", Identifier("x"))),
+                            Literal(None),
+                        ]
+                    ),
+                    typ=FunType([Int], Int),
+                )
+            ],
+            [],
+        )
     )

@@ -28,7 +28,7 @@ pushq %rbp
 movq %rsp, %rbp
 subq $56, %rsp
 
-# LoadBoolConst((0, 14), True, X_2)
+# LoadBoolConst((0, 10), True, X_2)
 movq $1, -8(%rbp)
 
 # Copy((0, 2), X_2, X_1)
