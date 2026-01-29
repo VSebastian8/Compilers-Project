@@ -14,9 +14,7 @@ def get_ir_var(var: str, ir_table: ir.IRTab) -> ir.IRVar:
                 return get_ir_var(var, ir_tab)
 
 
-def generate_ir(
-    root_expr: ast.Expression, reserved_names: set[str]
-) -> list[ir.Instruction]:
+def generate_ir(mod: ast.Module, reserved_names: set[str]) -> list[ir.Instruction]:
     var_unit = ir.IRVar("unit")
 
     current_var = -1
@@ -197,15 +195,17 @@ def generate_ir(
     for name in reserved_names:
         root_irtab.locals[name] = ir.IRVar(name)
 
-    var_final_result = visit(root_expr, root_irtab)
+    var_final_result = var_unit
+    for exp in mod.exps:
+        var_final_result = visit(exp, root_irtab)
 
-    if root_expr.typ == Int:
+    if mod.exps[-1].typ == Int:
         ins.append(
             ir.Call(
                 ir.IRVar("print_int"), [var_final_result], var_unit, loc=Location(0, 0)
             )
         )
-    elif root_expr.typ == Bool:
+    elif mod.exps[-1].typ == Bool:
         ins.append(
             ir.Call(
                 ir.IRVar("print_bool"), [var_final_result], var_unit, loc=Location(0, 0)

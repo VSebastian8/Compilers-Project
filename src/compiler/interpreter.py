@@ -69,7 +69,9 @@ def set_variable(variable: str, val: Value, symbol_table: SymTab) -> None:
                 set_variable(variable, val, sym_tab)
 
 
-def interpret(node: ast.Expression, symbol_table: SymTab = top_level) -> Value:
+def interpret(
+    node: ast.Expression | ast.Module, symbol_table: SymTab = top_level
+) -> Value:
     match node:
         case ast.Literal():
             return node.value
@@ -145,5 +147,12 @@ def interpret(node: ast.Expression, symbol_table: SymTab = top_level) -> Value:
             return_val = None
             for exp in node.expressions:
                 return_val = interpret(exp, new_scope)
+            return return_val
+
+        case ast.Module():
+            top_scope = SymTab({}, top_level)
+            return_val = None
+            for exp in node.exps:
+                return_val = interpret(exp, top_scope)
             return return_val
     return None

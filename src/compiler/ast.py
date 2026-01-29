@@ -75,3 +75,14 @@ class While(Expression):
 @dataclass
 class LoopControl(Expression):
     name: str  # break or continue
+
+
+@dataclass
+class FunDef(Expression):
+    name: str
+
+
+@dataclass
+class Module:
+    funs: list[FunDef]
+    exps: list[Expression]

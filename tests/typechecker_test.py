@@ -3,7 +3,16 @@ from compiler.token import Location
 from compiler.parser import parse
 from compiler.typechecker import typecheck
 from compiler.types import Int, Bool, Unit
-from compiler.ast import Block, Literal, While, Assignment, VarDec, Identifier, BinaryOp
+from compiler.ast import (
+    Block,
+    Literal,
+    While,
+    Assignment,
+    VarDec,
+    Identifier,
+    BinaryOp,
+    Module,
+)
 
 
 def test_typechecker_basics() -> None:
@@ -52,7 +61,8 @@ def test_typechecker_blocks() -> None:
     assert typecheck(palindrome_program) == Bool
 
     # Check that the type annotations in the ast are now correct (not Unit like before)
-    assert palindrome_program == Block(
+    assert palindrome_program == Module(
+        [],
         [
             VarDec(
                 "y",
@@ -144,8 +154,6 @@ def test_typechecker_blocks() -> None:
                 typ=Bool,
             ),
         ],
-        loc=Location(0, 0),
-        typ=Bool,
     )
 
 

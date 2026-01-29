@@ -12,6 +12,7 @@ from compiler.ast import (
     Block,
     While,
     LoopControl,
+    Module,
 )
 from compiler.tokenizer import tokenize
 from compiler.types import Int, Bool, Unit, FunType
@@ -25,7 +26,7 @@ def test_parser_basics() -> None:
             Token("+", "operator"),
             Token("5", "integer"),
         ]
-    ) == BinaryOp(Literal(23), "+", Literal(5))
+    ) == Module([], [BinaryOp(Literal(23), "+", Literal(5))])
 
     # x / 2
     assert parse(
@@ -34,7 +35,7 @@ def test_parser_basics() -> None:
             Token("/", "operator"),
             Token("2", "integer"),
         ]
-    ) == BinaryOp(Identifier("x"), "/", Literal(2))
+    ) == Module([], [BinaryOp(Identifier("x"), "/", Literal(2))])
 
 
 def test_parser_associativity() -> None:
@@ -47,7 +48,7 @@ def test_parser_associativity() -> None:
             Token("-", "operator"),
             Token("3", "integer"),
         ]
-    ) == BinaryOp(BinaryOp(Literal(1), "+", Literal(2)), "-", Literal(3))
+    ) == Module([], [BinaryOp(BinaryOp(Literal(1), "+", Literal(2)), "-", Literal(3))])
 
     # x / y * z
     assert parse(
@@ -58,7 +59,14 @@ def test_parser_associativity() -> None:
             Token("*", "operator"),
             Token("z", "identifier"),
         ]
-    ) == BinaryOp(BinaryOp(Identifier("x"), "/", Identifier("y")), "*", Identifier("z"))
+    ) == Module(
+        [],
+        [
+            BinaryOp(
+                BinaryOp(Identifier("x"), "/", Identifier("y")), "*", Identifier("z")
+            )
+        ],
+    )
 
 
 def test_parser_precedence() -> None:
@@ -71,7 +79,9 @@ def test_parser_precedence() -> None:
             Token("/", "operator"),
             Token("x", "identifier"),
         ]
-    ) == BinaryOp(Literal(1), "+", BinaryOp(Literal(1), "/", Identifier("x")))
+    ) == Module(
+        [], [BinaryOp(Literal(1), "+", BinaryOp(Literal(1), "/", Identifier("x")))]
+    )
 
     # 2 + x * x / 2 - 2 * hello
     assert parse(
@@ -88,42 +98,59 @@ def test_parser_precedence() -> None:
             Token("*", "operator"),
             Token("hello", "identifier"),
         ]
-    ) == BinaryOp(
-        left=BinaryOp(
-            left=Literal(2),
-            op="+",
-            right=BinaryOp(
-                BinaryOp(Identifier("x"), "*", Identifier("x")), "/", Literal(2)
-            ),
-        ),
-        op="-",
-        right=BinaryOp(Literal(2), "*", Identifier("hello")),
-    )
-
-    assert parse(tokenize("x + y == 2 or x < 1 + y / 2")) == BinaryOp(
-        BinaryOp(BinaryOp(Identifier("x"), "+", Identifier("y")), "==", Literal(2)),
-        "or",
-        BinaryOp(
-            Identifier("x"),
-            "<",
+    ) == Module(
+        [],
+        [
             BinaryOp(
-                Literal(1),
-                "+",
-                BinaryOp(Identifier("y"), "/", Literal(2)),
-            ),
-        ),
+                left=BinaryOp(
+                    left=Literal(2),
+                    op="+",
+                    right=BinaryOp(
+                        BinaryOp(Identifier("x"), "*", Identifier("x")), "/", Literal(2)
+                    ),
+                ),
+                op="-",
+                right=BinaryOp(Literal(2), "*", Identifier("hello")),
+            )
+        ],
     )
 
-    assert parse(tokenize("not not x")) == UnaryOp(
-        "not", UnaryOp("not", Identifier("x"))
+    assert parse(tokenize("x + y == 2 or x < 1 + y / 2")) == Module(
+        [],
+        [
+            BinaryOp(
+                BinaryOp(
+                    BinaryOp(Identifier("x"), "+", Identifier("y")), "==", Literal(2)
+                ),
+                "or",
+                BinaryOp(
+                    Identifier("x"),
+                    "<",
+                    BinaryOp(
+                        Literal(1),
+                        "+",
+                        BinaryOp(Identifier("y"), "/", Literal(2)),
+                    ),
+                ),
+            )
+        ],
     )
 
-    assert parse(tokenize("-1 + 2 != 3")) == BinaryOp(
-        BinaryOp(UnaryOp("-", Literal(1)), "+", Literal(2)), "!=", Literal(3)
+    assert parse(tokenize("not not x")) == Module(
+        [], [UnaryOp("not", UnaryOp("not", Identifier("x")))]
     )
 
-    assert parse(tokenize("x * -1")) == BinaryOp(
-        Identifier("x"), "*", UnaryOp("-", Literal(1))
+    assert parse(tokenize("-1 + 2 != 3")) == Module(
+        [],
+        [
+            BinaryOp(
+                BinaryOp(UnaryOp("-", Literal(1)), "+", Literal(2)), "!=", Literal(3)
+            )
+        ],
+    )
+
+    assert parse(tokenize("x * -1")) == Module(
+        [], [BinaryOp(Identifier("x"), "*", UnaryOp("-", Literal(1)))]
     )
 
 
@@ -139,7 +166,10 @@ def test_parser_parentheses() -> None:
             Token("y", "identifier"),
             Token(")", "punctuation"),
         ]
-    ) == BinaryOp(Literal(2026), "*", BinaryOp(Identifier("x"), "+", Identifier("y")))
+    ) == Module(
+        [],
+        [BinaryOp(Literal(2026), "*", BinaryOp(Identifier("x"), "+", Identifier("y")))],
+    )
 
     # 2026 * (((((x - y)))))
     assert parse(
@@ -160,7 +190,10 @@ def test_parser_parentheses() -> None:
             Token(")", "punctuation"),
             Token(")", "punctuation"),
         ]
-    ) == BinaryOp(Literal(2026), "*", BinaryOp(Identifier("x"), "-", Identifier("y")))
+    ) == Module(
+        [],
+        [BinaryOp(Literal(2026), "*", BinaryOp(Identifier("x"), "-", Identifier("y")))],
+    )
 
     # (x) * (3 - 1 / (y * 15))
     assert parse(
@@ -181,14 +214,21 @@ def test_parser_parentheses() -> None:
             Token(")", "punctuation"),
             Token(")", "punctuation"),
         ]
-    ) == BinaryOp(
-        Identifier("x"),
-        "*",
-        BinaryOp(
-            Literal(3),
-            "-",
-            BinaryOp(Literal(1), "/", BinaryOp(Identifier("y"), "*", Literal(15))),
-        ),
+    ) == Module(
+        [],
+        [
+            BinaryOp(
+                Identifier("x"),
+                "*",
+                BinaryOp(
+                    Literal(3),
+                    "-",
+                    BinaryOp(
+                        Literal(1), "/", BinaryOp(Identifier("y"), "*", Literal(15))
+                    ),
+                ),
+            )
+        ],
     )
 
 
@@ -201,7 +241,7 @@ def test_parser_exceptions() -> None:
 
     # Leftover text:
     # 3 4
-    with pytest.raises(Exception, match=re.escape("(0, 2): missing ;")):
+    with pytest.raises(Exception, match=re.escape("(0, 2): unexpected token 4")):
         parse(
             [
                 Token("3", "integer"),
@@ -240,11 +280,11 @@ def test_parser_exceptions() -> None:
         )
 
     # Assignment to non-identifier
-    with pytest.raises(Exception, match=re.escape("(0, 3): missing ;")):
+    with pytest.raises(Exception, match=re.escape("(0, 3): unexpected token =")):
         parse(tokenize("27 = x"))
 
     # Assignment to non-identifier (b * 3 = c makes no sense)
-    with pytest.raises(Exception, match=re.escape("(0, 10): missing ;")):
+    with pytest.raises(Exception, match=re.escape("(0, 10): unexpected token =")):
         parse(tokenize("a = b * 3 = c"))
 
     # Block statements without ;
@@ -309,10 +349,15 @@ def test_parser_if_then_else() -> None:
             Token("*", "operator"),
             Token("y", "identifier"),
         ]
-    ) == IfThenElse(
-        Identifier("a"),
-        BinaryOp(Identifier("b"), "+", Identifier("c")),
-        BinaryOp(Identifier("x"), "*", Identifier("y")),
+    ) == Module(
+        [],
+        [
+            IfThenElse(
+                Identifier("a"),
+                BinaryOp(Identifier("b"), "+", Identifier("c")),
+                BinaryOp(Identifier("x"), "*", Identifier("y")),
+            )
+        ],
     )
 
     # if x + 2 * 2 then True
@@ -327,10 +372,15 @@ def test_parser_if_then_else() -> None:
             Token("then", "identifier"),
             Token("True", "identifier"),
         ]
-    ) == IfThenElse(
-        BinaryOp(Identifier("x"), "+", BinaryOp(Literal(2), "*", Literal(2))),
-        Identifier("True"),
-        None,
+    ) == Module(
+        [],
+        [
+            IfThenElse(
+                BinaryOp(Identifier("x"), "+", BinaryOp(Literal(2), "*", Literal(2))),
+                Identifier("True"),
+                None,
+            )
+        ],
     )
 
     # 5 * if x then if y then 2 else 3
@@ -348,90 +398,136 @@ def test_parser_if_then_else() -> None:
             Token("else", "identifier"),
             Token("3", "integer"),
         ]
-    ) == BinaryOp(
-        Literal(5),
-        "*",
-        IfThenElse(
-            Identifier("x"),
-            IfThenElse(Identifier("y"), Literal(2), Literal(3)),
-            None,
-        ),
+    ) == Module(
+        [],
+        [
+            BinaryOp(
+                Literal(5),
+                "*",
+                IfThenElse(
+                    Identifier("x"),
+                    IfThenElse(Identifier("y"), Literal(2), Literal(3)),
+                    None,
+                ),
+            )
+        ],
     )
 
 
 def test_parser_functions() -> None:
-    assert parse(tokenize("f(x, y + z)")) == FunctionCall(
-        "f", [Identifier("x"), BinaryOp(Identifier("y"), "+", Identifier("z"))]
+    assert parse(tokenize("f(x, y + z)")) == Module(
+        [],
+        [
+            FunctionCall(
+                "f", [Identifier("x"), BinaryOp(Identifier("y"), "+", Identifier("z"))]
+            )
+        ],
     )
 
-    assert parse(tokenize("print_int(27)")) == FunctionCall("print_int", [Literal(27)])
+    assert parse(tokenize("print_int(27)")) == Module(
+        [], [FunctionCall("print_int", [Literal(27)])]
+    )
 
-    assert parse(tokenize("main()")) == FunctionCall("main", [])
+    assert parse(tokenize("main()")) == Module([], [FunctionCall("main", [])])
 
 
 def test_parser_assignment() -> None:
-    assert parse(tokenize("x = 24")) == Assignment("x", Literal(24))
+    assert parse(tokenize("x = 24")) == Module([], [Assignment("x", Literal(24))])
 
-    assert parse(tokenize("a = b = c = (d + 2)")) == Assignment(
-        "a",
-        Assignment(
-            "b",
-            Assignment("c", BinaryOp(Identifier("d"), "+", Literal(2))),
-        ),
+    assert parse(tokenize("a = b = c = (d + 2)")) == Module(
+        [],
+        [
+            Assignment(
+                "a",
+                Assignment(
+                    "b",
+                    Assignment("c", BinaryOp(Identifier("d"), "+", Literal(2))),
+                ),
+            )
+        ],
     )
 
-    assert parse(tokenize("if True then x = y == 12 or 300 > z * 2")) == IfThenElse(
-        Identifier("True"),
-        Assignment(
-            "x",
-            BinaryOp(
-                BinaryOp(Identifier("y"), "==", Literal(12)),
-                "or",
-                BinaryOp(Literal(300), ">", BinaryOp(Identifier("z"), "*", Literal(2))),
-            ),
-        ),
-        None,
+    assert parse(tokenize("if True then x = y == 12 or 300 > z * 2")) == Module(
+        [],
+        [
+            IfThenElse(
+                Identifier("True"),
+                Assignment(
+                    "x",
+                    BinaryOp(
+                        BinaryOp(Identifier("y"), "==", Literal(12)),
+                        "or",
+                        BinaryOp(
+                            Literal(300),
+                            ">",
+                            BinaryOp(Identifier("z"), "*", Literal(2)),
+                        ),
+                    ),
+                ),
+                None,
+            )
+        ],
     )
 
-    assert parse(tokenize("2 * (hello = world)")) == BinaryOp(
-        Literal(2), "*", Assignment("hello", Identifier("world"))
+    assert parse(tokenize("2 * (hello = world)")) == Module(
+        [], [BinaryOp(Literal(2), "*", Assignment("hello", Identifier("world")))]
     )
 
 
 def test_parser_var() -> None:
-    assert parse(tokenize("var a = b = c")) == VarDec(
-        "a",
-        Assignment("b", Identifier("c")),
+    assert parse(tokenize("var a = b = c")) == Module(
+        [],
+        [
+            VarDec(
+                "a",
+                Assignment("b", Identifier("c")),
+            )
+        ],
     )
 
-    assert parse(tokenize("var x: Int = 2")) == VarDec("x", Literal(2), typ=Int)
-
-    assert parse(tokenize("var x: () => Bool = always_true;")) == Block(
-        [VarDec("x", Identifier("always_true"), typ=FunType([], Bool)), Literal(None)]
+    assert parse(tokenize("var x: Int = 2")) == Module(
+        [], [VarDec("x", Literal(2), typ=Int)]
     )
 
-    assert parse(tokenize("var new_print: (Int) => Unit = print_int")) == VarDec(
-        "new_print", Identifier("print_int"), typ=FunType([Int], Unit)
+    assert parse(tokenize("var x: () => Bool = always_true;")) == Module(
+        [],
+        [
+            VarDec("x", Identifier("always_true"), typ=FunType([], Bool)),
+        ],
+    )
+
+    assert parse(tokenize("var new_print: (Int) => Unit = print_int")) == Module(
+        [], [VarDec("new_print", Identifier("print_int"), typ=FunType([Int], Unit))]
     )
 
 
 def test_parser_block() -> None:
-    assert parse(tokenize("{ x = y * 2 }")) == Block(
-        [Assignment("x", BinaryOp(Identifier("y"), "*", Literal(2)))]
+    assert parse(tokenize("{ x = y * 2 }")) == Module(
+        [], [Block([Assignment("x", BinaryOp(Identifier("y"), "*", Literal(2)))])]
     )
 
-    assert parse(tokenize("{ x = 2; 3 + 3 / 3; f(x); }")) == Block(
+    assert parse(tokenize("{ x = 2; 3 + 3 / 3; f(x); }")) == Module(
+        [],
         [
-            Assignment("x", Literal(2)),
-            BinaryOp(Literal(3), "+", BinaryOp(Literal(3), "/", Literal(3))),
-            FunctionCall("f", [Identifier("x")]),
-            Literal(None),
-        ]
+            Block(
+                [
+                    Assignment("x", Literal(2)),
+                    BinaryOp(Literal(3), "+", BinaryOp(Literal(3), "/", Literal(3))),
+                    FunctionCall("f", [Identifier("x")]),
+                    Literal(None),
+                ]
+            )
+        ],
     )
 
-    assert parse(tokenize("while True do { print_int(14); }")) == While(
-        Identifier("True"),
-        Block([FunctionCall("print_int", [Literal(14)]), Literal(None)]),
+    assert parse(tokenize("while True do { print_int(14); }")) == Module(
+        [],
+        [
+            While(
+                Identifier("True"),
+                Block([FunctionCall("print_int", [Literal(14)]), Literal(None)]),
+            )
+        ],
     )
 
     assert (
@@ -453,46 +549,63 @@ def test_parser_block() -> None:
         }"""
             )
         )
-        == Block(
+        == Module(
+            [],
             [
-                While(
-                    FunctionCall("f", []),
-                    Block(
-                        [
-                            VarDec("x", Literal(10)),
-                            Assignment(
-                                "y",
-                                IfThenElse(
-                                    FunctionCall("g", [Identifier("x")]),
-                                    Block(
-                                        [
-                                            Assignment(
-                                                "x",
-                                                BinaryOp(
-                                                    Identifier("x"), "+", Literal(1)
-                                                ),
+                Block(
+                    [
+                        While(
+                            FunctionCall("f", []),
+                            Block(
+                                [
+                                    VarDec("x", Literal(10)),
+                                    Assignment(
+                                        "y",
+                                        IfThenElse(
+                                            FunctionCall("g", [Identifier("x")]),
+                                            Block(
+                                                [
+                                                    Assignment(
+                                                        "x",
+                                                        BinaryOp(
+                                                            Identifier("x"),
+                                                            "+",
+                                                            Literal(1),
+                                                        ),
+                                                    ),
+                                                    Identifier("x"),
+                                                ]
                                             ),
-                                            Identifier("x"),
-                                        ]
+                                            Block(
+                                                [FunctionCall("g", [Identifier("x")])]
+                                            ),
+                                        ),
                                     ),
-                                    Block([FunctionCall("g", [Identifier("x")])]),
-                                ),
+                                    FunctionCall("g", [Identifier("y")]),
+                                    Literal(None),
+                                ]
                             ),
-                            FunctionCall("g", [Identifier("y")]),
-                            Literal(None),
-                        ]
-                    ),
-                ),
-                Literal(123),
-            ]
+                        ),
+                        Literal(123),
+                    ]
+                )
+            ],
         )
     )
 
-    assert parse(tokenize("x = { { f(a) } { b } }")) == Assignment(
-        "x",
-        Block(
-            [Block([FunctionCall("f", [Identifier("a")])]), Block([Identifier("b")])]
-        ),
+    assert parse(tokenize("x = { { f(a) } { b } }")) == Module(
+        [],
+        [
+            Assignment(
+                "x",
+                Block(
+                    [
+                        Block([FunctionCall("f", [Identifier("a")])]),
+                        Block([Identifier("b")]),
+                    ]
+                ),
+            )
+        ],
     )
 
     assert (
@@ -505,33 +618,40 @@ def test_parser_block() -> None:
         tokenize("{ if true then { a } else { b };c }")
     )
 
-    assert parse(tokenize("x = 42; 14; print(x)")) == Block(
+    assert parse(tokenize("x = 42; 14; print(x)")) == Module(
+        [],
         [
             Assignment("x", Literal(42)),
             Literal(14),
             FunctionCall("print", [Identifier("x")]),
-        ]
+        ],
     )
 
-    assert parse(tokenize("var x = { 42 } print(x)")) == Block(
+    assert parse(tokenize("var x = { 42 } print(x)")) == Module(
+        [],
         [
             VarDec("x", Block([Literal(42)])),
             FunctionCall("print", [Identifier("x")]),
-        ]
+        ],
     )
 
     assert parse(
         tokenize("while true do { var x = 2; if x == 2 then break else continue }")
-    ) == While(
-        Literal(True),
-        Block(
-            [
-                VarDec("x", Literal(2)),
-                IfThenElse(
-                    BinaryOp(Identifier("x"), "==", Literal(2)),
-                    LoopControl("break"),
-                    LoopControl("continue"),
+    ) == Module(
+        [],
+        [
+            While(
+                Literal(True),
+                Block(
+                    [
+                        VarDec("x", Literal(2)),
+                        IfThenElse(
+                            BinaryOp(Identifier("x"), "==", Literal(2)),
+                            LoopControl("break"),
+                            LoopControl("continue"),
+                        ),
+                    ]
                 ),
-            ]
-        ),
+            )
+        ],
     )

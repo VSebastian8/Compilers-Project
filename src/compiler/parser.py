@@ -4,7 +4,7 @@ import compiler.ast as ast
 import compiler.types as types
 
 
-def parse(tokens: list[Token]) -> ast.Expression:
+def parse(tokens: list[Token]) -> ast.Module:
     if len(tokens) == 0:
         raise Exception("Empty list of tokens")
     # Token index
@@ -65,6 +65,8 @@ def parse(tokens: list[Token]) -> ast.Expression:
         elif peek().text == "continue":
             consume("continue")
             return ast.LoopControl("continue")
+        elif peek().text == "def":
+            raise Exception(f"{peek().loc}: can only define functions at top level")
         elif peek().ttype == "identifier":
             token = consume()
             if peek().text == "(":
@@ -190,10 +192,8 @@ def parse(tokens: list[Token]) -> ast.Expression:
         right = parse_expression()
         return ast.VarDec(left.text, right, loc=var_tok.loc, typ=typ)
 
-    def parse_block(top_level: bool = False) -> ast.Block:
-        loc = Location(0, 0)
-        if not top_level:
-            loc = consume("{").loc
+    def parse_block() -> ast.Block:
+        loc = consume("{").loc
         exps = []
         void = True
         while not peek().text == "}":
@@ -215,8 +215,7 @@ def parse(tokens: list[Token]) -> ast.Expression:
                     raise Exception(f"{peek().loc}: missing ;")
         if void:
             exps.append(ast.Literal(None))
-        if not top_level:
-            consume("}")
+        consume("}")
         return ast.Block(exps, loc=loc)
 
     def parse_while_expression() -> ast.While:
@@ -226,13 +225,36 @@ def parse(tokens: list[Token]) -> ast.Expression:
         block = parse_block()
         return ast.While(condition, block, loc=loc)
 
+    def parse_fundef() -> ast.FunDef:
+        consume("def")
+        token = consume()
+        if token.ttype != "identifier":
+            raise Exception(f"{token.loc}: function name must be an identifier")
+        return ast.FunDef(token.text, loc=token.loc)
+
+    def parse_module() -> ast.Module:
+        funs = []
+        exps = []
+        while True:
+            if pos == len(tokens):
+                break
+            if peek().text == "def":
+                funs.append(parse_fundef())
+            else:
+                exps.append(parse_var() if peek().text == "var" else parse_expression())
+                if pos == len(tokens):
+                    break
+                if tokens[pos - 1].text == "}":
+                    continue
+                if peek().text == ";":
+                    consume(";")
+                else:
+                    break
+
+        return ast.Module(funs, exps)
+
     # Finall Parser Function Call
-    top_level_result = parse_block(top_level=True)
-    result: ast.Expression = (
-        top_level_result
-        if len(top_level_result.expressions) != 1
-        else top_level_result.expressions[0]
-    )
+    result = parse_module()
     if pos < len(tokens):
         raise Exception(f"{peek().loc}: unexpected token {peek().text}")
     return result

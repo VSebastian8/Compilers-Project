@@ -25,15 +25,16 @@ def set_var_type(var: str, typ: types.Type, type_table: types.TypeTab) -> None:
 
 
 def typecheck(
-    node: ast.Expression, type_table: types.TypeTab = types.top_level
+    node: ast.Expression | ast.Module, type_table: types.TypeTab = types.top_level
 ) -> types.Type:
     typ = get_type(node, type_table)
-    node.typ = typ
+    if not isinstance(node, ast.Module):
+        node.typ = typ
     return typ
 
 
 def get_type(
-    node: ast.Expression, type_table: types.TypeTab = types.top_level
+    node: ast.Expression | ast.Module, type_table: types.TypeTab = types.top_level
 ) -> types.Type:
     match node:
         case ast.Literal():
@@ -154,5 +155,12 @@ def get_type(
 
         case ast.LoopControl():
             return types.Unit
+
+        case ast.Module():
+            return_val = types.Unit
+            top_scope = types.TypeTab({}, type_table)
+            for exp in node.exps:
+                return_val = typecheck(exp, top_scope)
+            return return_val
 
     return types.Unit
